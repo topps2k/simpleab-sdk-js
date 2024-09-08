@@ -397,6 +397,7 @@ class SimpleABSDK
           dimension,
           treatment,
           metricName,
+          aggregationType,
           p50: percentiles[50],
           p90: percentiles[90],
           p99: percentiles[99],

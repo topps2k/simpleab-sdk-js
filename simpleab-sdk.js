@@ -7,10 +7,40 @@ class BaseAPIUrls
   static CAPTCHIFY_NA = 'api.captchify.com';
 }
 
+// Class for aggregation types
+class FlushIntervals
+{
+  static ONE_MINUTE = 60000;
+  static FIVE_MINUTE = 300000;
+
+  static isValid(type)
+  {
+    return [this.ONE_MINUTE, this.FIVE_MINUTE].includes(type);
+  }
+}
+
+// Class for aggregation types
+class AggregationTypes
+{
+  static SUM = 'sum';
+  static AVERAGE = 'average';
+  static PERCENTILE = 'percentile';
+
+  static isValid(type)
+  {
+    return [this.SUM, this.AVERAGE, this.PERCENTILE].includes(type);
+  }
+}
+
 class SimpleABSDK
 {
-  constructor(apiURL, apiKey, experiments = [])
+  constructor(apiURL, apiKey, experiments = [], flushInterval = FlushIntervals.ONE_MINUTE)
   {
+    if (!FlushIntervals.isValid(flushInterval))
+    {
+      throw new Error("Invalid Flush Interval")
+    }
+
     this.apiURL = apiURL;
     this.apiKey = apiKey;
     this.experiments = experiments;
@@ -21,12 +51,17 @@ class SimpleABSDK
       headers: { 'X-API-Key': apiKey }
     });
 
+    // New properties for metric tracking
+    this.buffer = {};
+    this.flushInterval = flushInterval;
+
     if (experiments.length > 0)
     {
       this._loadExperiments(experiments).catch(console.error);
     }
 
     this._startCacheRefresh();
+    this._startBufferFlush(); // Start the buffer flush interval
   }
 
   async getTreatment(experimentID, stage, allocationKey, dimension)
@@ -35,7 +70,6 @@ class SimpleABSDK
 
     try
     {
-
       // Check for overrides
       const override = this._checkForOverride(exp, stage, dimension, allocationKey);
       if (override)
@@ -162,6 +196,11 @@ class SimpleABSDK
       clearInterval(this.cacheRefreshInterval);
       this.cacheRefreshInterval = null;
     }
+    if (this.bufferFlushInterval)
+    {
+      clearInterval(this.bufferFlushInterval);
+      this.bufferFlushInterval = null;
+    }
     // Add any additional cleanup logic here if needed
   }
 
@@ -204,6 +243,141 @@ class SimpleABSDK
 
     return '';
   }
+
+  // New methods for metric tracking and flushing
+
+  /**
+   * Track a metric.
+   * @param {Object} params - Parameters for tracking the metric.
+   * @param {string} params.experimentID - The experiment ID.
+   * @param {string} params.stage - The experiment stage.
+   * @param {string} params.dimension - The dimension for the metric.
+   * @param {string} params.treatment - The treatment group for the experiment.
+   * @param {string} params.metricName - The name of the metric.
+   * @param {number} params.metricValue - The value of the metric.
+   * @param {string} params.aggregationType - 'sum', 'average', or 'percentile' defines how the metric should be aggregated.
+   */
+  async trackMetric({ experimentID, stage, dimension, treatment, metricName, metricValue, aggregationType = AggregationTypes.SUM })
+  {
+    // Validate experiment, stage, and dimension
+    const experiment = await this._getExperiment(experimentID);
+    const stageData = experiment.stages.find(s => s.stage === stage);
+    if (!stageData)
+    {
+      throw new Error(`Stage ${stage} not found for experiment ${experimentID}`);
+    }
+    const stageDimension = stageData.stageDimensions.find(sd => sd.dimension === dimension);
+    if (!stageDimension)
+    {
+      throw new Error(`Dimension ${dimension} not found for stage ${stage} in experiment ${experimentID}`);
+    }
+
+    // Validate aggregation type
+    if (!AggregationTypes.isValid(aggregationType))
+    {
+      throw new Error(`Invalid aggregation type: ${aggregationType}`);
+    }
+
+    const key = `${experimentID}-${stage}-${dimension}-${treatment}-${metricName}-${aggregationType}`;
+
+    // Initialize or aggregate metric in the buffer
+    if (!this.buffer[key])
+    {
+      this.buffer[key] = { sum: 0, count: 0, values: [] };
+    }
+
+    this.buffer[key].sum += metricValue;
+    this.buffer[key].count += 1;
+
+    // Track values for percentiles
+    if (aggregationType === AggregationTypes.PERCENTILE)
+    {
+      this.buffer[key].values.push(metricValue); // Collect raw values for percentile calculation
+    }
+  }
+
+  // Periodically flush metrics based on time (every minute)
+  _startBufferFlush()
+  {
+    this.bufferFlushInterval = setInterval(() =>
+    {
+      if (Object.keys(this.buffer).length > 0)
+      {
+        this._flushMetrics();
+      }
+    }, this.flushInterval);
+  }
+
+  // Helper function to calculate percentiles
+  _calculatePercentiles(values, percentiles)
+  {
+    if (values.length === 0) return {};
+
+    values.sort((a, b) => a - b); // Sort values to calculate percentiles
+    const results = {};
+
+    percentiles.forEach(percentile =>
+    {
+      const idx = Math.ceil((percentile / 100) * values.length) - 1;
+      results[percentile] = values[idx];
+    });
+
+    return results;
+  }
+
+  // Flush metrics to the backend server
+  async _flushMetrics()
+  {
+    const metricsBatch = Object.entries(this.buffer).map(([key, value]) =>
+    {
+      const [experimentID, stage, dimension, treatment, metricName, aggregationType] = key.split('-');
+
+      let metricValue;
+      if (aggregationType === AggregationTypes.AVERAGE)
+      {
+        metricValue = value.sum / value.count; // Calculate the average
+      } else if (aggregationType === AggregationTypes.PERCENTILE)
+      {
+        const percentiles = this._calculatePercentiles(value.values, [50, 90, 99]);
+        return {
+          experimentID,
+          stage,
+          dimension,
+          treatment,
+          metricName,
+          p50: percentiles[50],
+          p90: percentiles[90],
+          p99: percentiles[99],
+          count: value.count
+        };
+      } else
+      {
+        metricValue = value.sum; // For sum, just use the sum
+      }
+
+      return {
+        experimentID,
+        stage,
+        dimension,
+        treatment,
+        metricName,
+        aggregationType,
+        value: metricValue,
+        count: value.count // Include count for further aggregation if needed
+      };
+    });
+
+    this.buffer = {};  // Clear buffer after sending
+
+    try
+    {
+      await this.client.post('/metrics/track/batch', { metrics: metricsBatch });
+      console.log('Metrics batch sent successfully');
+    } catch (error)
+    {
+      console.error('Error sending metrics batch:', error);
+    }
+  }
 }
 
-module.exports = { SimpleABSDK, BaseAPIUrls };
+module.exports = { SimpleABSDK, BaseAPIUrls, AggregationTypes };

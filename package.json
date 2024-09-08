@@ -1,6 +1,6 @@
 {
   "name": "simpleab-sdk-js",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "JavaScript SDK for Captchify's SimpleAB",
   "main": "simpleab-sdk.js",
   "types": "simpleab-sdk.d.ts",

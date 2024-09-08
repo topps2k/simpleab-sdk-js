@@ -73,7 +73,10 @@ class SimpleABSDK
 
     if (experiments.length > 0)
     {
-      this._loadExperiments(experiments).catch(console.error);
+      this._loadExperiments(experiments).catch((error) =>
+      {
+        console.log('Error loading experiments:', error.message);
+      });
     }
 
     this._startCacheRefresh();
@@ -205,7 +208,7 @@ class SimpleABSDK
       }
     } catch (error)
     {
-      console.error('Error loading experiments:', error);
+      console.error('Error loading experiments:', error.message);
       throw error;
     }
   }
@@ -238,7 +241,7 @@ class SimpleABSDK
       await this._loadExperiments(cacheKeys);
     } catch (error)
     {
-      console.error('Error refreshing experiments:', error);
+      console.error('Error refreshing experiments:', error.message);
     }
   }
 
@@ -424,7 +427,7 @@ class SimpleABSDK
     }
     catch (error)
     {
-      console.error('Error sending metrics batch:', error);
+      console.error('Error sending metrics batch:', error.message);
     }
   }
 }

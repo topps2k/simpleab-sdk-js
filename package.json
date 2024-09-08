@@ -1,0 +1,25 @@
+{
+  "name": "simpleab-sdk-js",
+  "version": "1.0.0",
+  "description": "JavaScript SDK for Captchify's SimpleAB",
+  "main": "simpleab-sdk.js",
+  "types": "simpleab-sdk.d.ts",
+  "scripts": {
+    "test": "jest",
+    "coverage": "jest --coverage"
+  },
+  "keywords": [
+    "captchify",
+    "simpleab",
+    "ab-testing",
+    "sdk"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.21.1"
+  },
+  "devDependencies": {
+    "jest": "^27.0.0"
+  }
+}

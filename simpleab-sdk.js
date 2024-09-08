@@ -250,7 +250,15 @@ class SimpleABSDK
   _isInExposureBucket(hash, exposure)
   {
     const hashInt = parseInt(hash.substring(0, 8), 16);
-    return (hashInt / 0xffffffff) < exposure;
+    if (hashInt === 0xffffffff && exposure === 100)
+    {
+      return true;
+    }
+    if (hashInt === 0x00000000 && exposure === 0)
+    {
+      return false;
+    }
+    return (hashInt / 0xffffffff) < (exposure / 100);
   }
 
   _determineTreatment(hash, treatmentAllocations)
@@ -260,7 +268,7 @@ class SimpleABSDK
 
     for (const allocation of treatmentAllocations)
     {
-      cumulativeProbability += allocation.allocation;
+      cumulativeProbability += allocation.allocation / 100;
       if (hashFloat < cumulativeProbability)
       {
         return allocation.id;

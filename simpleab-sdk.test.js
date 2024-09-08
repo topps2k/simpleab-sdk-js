@@ -72,10 +72,10 @@ describe('SimpleABSDK', () =>
               {
                 dimension: 'dim1',
                 enabled: true,
-                exposure: 0.5,
+                exposure: 50,
                 treatmentAllocations: [
-                  { id: 'treatment1', allocation: 0.5 },
-                  { id: 'treatment2', allocation: 0.5 }
+                  { id: 'treatment1', allocation: 50 },
+                  { id: 'treatment2', allocation: 50 }
                 ]
               }
             ]
@@ -151,10 +151,10 @@ describe('SimpleABSDK', () =>
               {
                 dimension: 'dim1',
                 enabled: true,
-                exposure: 0.5,
+                exposure: 50,
                 treatmentAllocations: [
-                  { id: 'treatment1', allocation: 0.5 },
-                  { id: 'treatment2', allocation: 0.5 }
+                  { id: 'treatment1', allocation: 50 },
+                  { id: 'treatment2', allocation: 50 }
                 ]
               }
             ]
@@ -195,10 +195,10 @@ describe('SimpleABSDK', () =>
               {
                 dimension: 'dim1',
                 enabled: true,
-                exposure: 0.5,
+                exposure: 50,
                 treatmentAllocations: [
-                  { id: 'treatment1', allocation: 0.5 },
-                  { id: 'treatment2', allocation: 0.5 }
+                  { id: 'treatment1', allocation: 50 },
+                  { id: 'treatment2', allocation: 50 }
                 ]
               }
             ]
@@ -366,14 +366,49 @@ describe('SimpleABSDK', () =>
     it('should return true when hash is within exposure', () =>
     {
       const hash = '00000000'; // This will result in 0 when converted to float
-      expect(sdk._isInExposureBucket(hash, 0.5)).toBe(true);
+      expect(sdk._isInExposureBucket(hash, 50)).toBe(true);
+      sdk.close();
+    });
+
+    it('should return true when hash is within exposure non zero', () =>
+    {
+      const hash = '22222222';
+      expect(sdk._isInExposureBucket(hash, 50)).toBe(true);
+      sdk.close();
+    });
+
+    it('should return true when hash is within exposure max', () =>
+    {
+      const hash = 'fffffffe'; // This will result in 1 when converted to float
+      expect(sdk._isInExposureBucket(hash, 100)).toBe(true);
+      sdk.close();
+    });
+
+    it('should return true when hash is within exposure max', () =>
+    {
+      const hash = 'ffffffff'; // This will result in 1 when converted to float
+      expect(sdk._isInExposureBucket(hash, 100)).toBe(true);
+      sdk.close();
+    });
+
+    it('should return false when hash is outside exposure', () =>
+    {
+      const hash = '00000000'; // This will result in 0 when converted to float
+      expect(sdk._isInExposureBucket(hash, 0)).toBe(false);
       sdk.close();
     });
 
     it('should return false when hash is outside exposure', () =>
     {
       const hash = 'ffffffff'; // This will result in 1 when converted to float
-      expect(sdk._isInExposureBucket(hash, 0.5)).toBe(false);
+      expect(sdk._isInExposureBucket(hash, 50)).toBe(false);
+      sdk.close();
+    });
+
+    it('should return false when hash is outside exposure non max', () =>
+    {
+      const hash = '99999999';
+      expect(sdk._isInExposureBucket(hash, 50)).toBe(false);
       sdk.close();
     });
   });
@@ -389,9 +424,9 @@ describe('SimpleABSDK', () =>
     {
       const hash = '80000000'; // This will result in 0.5 when converted to float
       const treatmentAllocations = [
-        { id: 'treatment1', allocation: 0.3 },
-        { id: 'treatment2', allocation: 0.3 },
-        { id: 'treatment3', allocation: 0.4 }
+        { id: 'treatment1', allocation: 30 },
+        { id: 'treatment2', allocation: 30 },
+        { id: 'treatment3', allocation: 40 }
       ];
       expect(sdk._determineTreatment(hash, treatmentAllocations)).toBe('treatment2');
       sdk.close();
@@ -401,8 +436,8 @@ describe('SimpleABSDK', () =>
     {
       const hash = 'ffffffff'; // This will result in 1 when converted to float
       const treatmentAllocations = [
-        { id: 'treatment1', allocation: 0.5 },
-        { id: 'treatment2', allocation: 0.4 }
+        { id: 'treatment1', allocation: 50 },
+        { id: 'treatment2', allocation: 40 }
       ];
       expect(sdk._determineTreatment(hash, treatmentAllocations)).toBe('');
       sdk.close();

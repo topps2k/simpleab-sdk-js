@@ -1,36 +1,42 @@
 declare module 'simpleab-sdk' {
   import { AxiosInstance } from 'axios';
 
-  interface TreatmentAllocation {
+  interface TreatmentAllocation
+  {
     id: string;
     allocation: number;
   }
 
-  interface StageDimension {
+  interface StageDimension
+  {
     dimension: string;
     enabled: boolean;
     exposure: number;
     treatmentAllocations: TreatmentAllocation[];
   }
 
-  interface Stage {
+  interface Stage
+  {
     stage: string;
     stageDimensions: StageDimension[];
   }
 
-  interface StageOverride {
+  interface StageOverride
+  {
     stage: string;
     enabled: boolean;
     dimensions: string[];
     treatment: string;
   }
 
-  interface Override {
+  interface Override
+  {
     allocationKey: string;
     stageOverrides: StageOverride[];
   }
 
-  interface Experiment {
+  interface Experiment
+  {
     id: string;
     allocationRandomizationToken: string;
     exposureRandomizationToken: string;
@@ -38,14 +44,16 @@ declare module 'simpleab-sdk' {
     overrides?: Override[];
   }
 
-  class BaseAPIUrls {
+  class BaseAPIUrls
+  {
     static CAPTCHIFY_NA: string;
   }
 
-  class SimpleABSDK {
+  class SimpleABSDK
+  {
     constructor(apiURL: string, apiKey: string, experiments?: string[]);
 
-    getTreatment(experimentID: string, stage: string, allocationKey: string, dimension: string): Promise<string>;
+    getTreatment(experimentID: string, stage: string, dimension: string, allocationKey: string): Promise<string>;
     close(): void;
 
     private _getExperiment(experimentID: string): Promise<Experiment>;

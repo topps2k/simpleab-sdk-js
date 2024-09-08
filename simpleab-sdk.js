@@ -80,7 +80,17 @@ class SimpleABSDK
     this._startBufferFlush(); // Start the buffer flush interval
   }
 
-  async getTreatment(experimentID, stage, allocationKey, dimension)
+
+  /**
+   * Track a metric.
+   * @param {Object} params - Parameters for tracking the metric.
+   * @param {string} params.experimentID - The experiment ID.
+   * @param {string} params.stage - The experiment stage.
+   * @param {string} params.dimension - The dimension for the metric.
+   * @param {string} params.allocationKey - The dimension for the metric.
+   */
+
+  async getTreatment(experimentID, stage, dimension, allocationKey)
   {
     const exp = await this._getExperiment(experimentID);
 
@@ -260,7 +270,6 @@ class SimpleABSDK
     return '';
   }
 
-  // New methods for metric tracking and flushing
 
   /**
    * Track a metric.

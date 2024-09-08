@@ -87,7 +87,7 @@ describe('SimpleABSDK', () =>
       sdk._isInExposureBucket = jest.fn().mockReturnValue(true);
       sdk._determineTreatment = jest.fn().mockReturnValue('treatment1');
 
-      const result = await sdk.getTreatment('exp1', 'stage1', 'user1', 'dim1');
+      const result = await sdk.getTreatment('exp1', 'stage1', 'dim1', 'user1');
       expect(result).toBe('treatment1');
       sdk.close();
     });
@@ -101,7 +101,7 @@ describe('SimpleABSDK', () =>
 
       sdk._getExperiment = jest.fn().mockResolvedValue(mockExperiment);
 
-      const result = await sdk.getTreatment('exp1', 'stage1', 'user1', 'dim1');
+      const result = await sdk.getTreatment('exp1', 'stage1', 'dim1', 'user1');
       expect(result).toBe('');
       sdk.close();
     });
@@ -177,7 +177,7 @@ describe('SimpleABSDK', () =>
 
       sdk._getExperiment = jest.fn().mockResolvedValue(mockExperiment);
 
-      const result = await sdk.getTreatment('exp1', 'stage1', 'user1', 'dim1');
+      const result = await sdk.getTreatment('exp1', 'stage1', 'dim1', 'user1');
       expect(result).toBe('override_treatment');
       sdk.close();
     });
@@ -223,7 +223,7 @@ describe('SimpleABSDK', () =>
       sdk._isInExposureBucket = jest.fn().mockReturnValue(true);
       sdk._determineTreatment = jest.fn().mockReturnValue('treatment1');
 
-      const result = await sdk.getTreatment('exp1', 'stage1', 'user1', 'dim1');
+      const result = await sdk.getTreatment('exp1', 'stage1', 'dim1', 'user1');
       expect(result).toBe('treatment1');
       sdk.close();
     });

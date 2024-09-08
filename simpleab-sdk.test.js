@@ -1,4 +1,4 @@
-const { SimpleABSDK } = require('./simpleab-sdk');
+const { SimpleABSDK, AggregationTypes, Treatments } = require('./simpleab-sdk');
 const axios = require('axios');
 
 jest.mock('axios');
@@ -16,6 +16,16 @@ describe('SimpleABSDK', () =>
   {
     jest.clearAllMocks();
     axios.create.mockReturnValue(mockAxiosInstance);
+    jest.useFakeTimers();
+  });
+
+  afterEach(() =>
+  {
+    jest.useRealTimers();
+    if (sdk)
+    {
+      sdk.close();
+    }
   });
 
   describe('constructor', () =>
@@ -398,4 +408,332 @@ describe('SimpleABSDK', () =>
       sdk.close();
     });
   });
+  describe('trackMetric', () =>
+  {
+    beforeEach(() =>
+    {
+      sdk = new SimpleABSDK(mockApiURL, mockApiKey);
+      sdk._getExperiment = jest.fn().mockResolvedValue({
+        id: 'exp1',
+        stages: [
+          {
+            stage: 'stage1',
+            stageDimensions: [
+              {
+                dimension: 'dim1',
+                enabled: true
+              }
+            ]
+          }
+        ],
+        treatments: [
+          {
+            id: 'C'
+          }
+        ]
+      });
+    });
+
+    it('should track sum metric correctly', async () =>
+    {
+      await sdk.trackMetric({
+        experimentID: 'exp1',
+        stage: 'stage1',
+        dimension: 'dim1',
+        treatment: Treatments.CONTROL,
+        metricName: 'metric1',
+        metricValue: 10,
+        aggregationType: AggregationTypes.SUM
+      });
+
+      expect(sdk.buffer).toHaveProperty('exp1-stage1-dim1-C-metric1-sum');
+      expect(sdk.buffer['exp1-stage1-dim1-C-metric1-sum']).toEqual({
+        sum: 10,
+        count: 1,
+        values: []
+      });
+    });
+
+    it('should track average metric correctly', async () =>
+    {
+      await sdk.trackMetric({
+        experimentID: 'exp1',
+        stage: 'stage1',
+        dimension: 'dim1',
+        treatment: Treatments.CONTROL,
+        metricName: 'metric1',
+        metricValue: 10,
+        aggregationType: AggregationTypes.AVERAGE
+      });
+
+      expect(sdk.buffer).toHaveProperty('exp1-stage1-dim1-C-metric1-average');
+      expect(sdk.buffer['exp1-stage1-dim1-C-metric1-average']).toEqual({
+        sum: 10,
+        count: 1,
+        values: []
+      });
+    });
+
+    it('should track percentile metric correctly', async () =>
+    {
+      await sdk.trackMetric({
+        experimentID: 'exp1',
+        stage: 'stage1',
+        dimension: 'dim1',
+        treatment: Treatments.CONTROL,
+        metricName: 'metric1',
+        metricValue: 10,
+        aggregationType: AggregationTypes.PERCENTILE
+      });
+
+      expect(sdk.buffer).toHaveProperty('exp1-stage1-dim1-C-metric1-percentile');
+      expect(sdk.buffer['exp1-stage1-dim1-C-metric1-percentile']).toEqual({
+        sum: 10,
+        count: 1,
+        values: [10]
+      });
+    });
+
+    it('should throw an error for invalid aggregation type', async () =>
+    {
+      await expect(sdk.trackMetric({
+        experimentID: 'exp1',
+        stage: 'stage1',
+        dimension: 'dim1',
+        treatment: Treatments.CONTROL,
+        metricName: 'metric1',
+        metricValue: 10,
+        aggregationType: 'invalid'
+      })).rejects.toThrow('Invalid aggregation type: invalid');
+    });
+
+    it('should throw an error for invalid treatment', async () =>
+    {
+      await expect(sdk.trackMetric({
+        experimentID: 'exp1',
+        stage: 'stage1',
+        dimension: 'dim1',
+        treatment: 'invalid_treatment',
+        metricName: 'metric1',
+        metricValue: 10
+      })).rejects.toThrow('Invalid treatment string');
+    });
+
+    it('should throw an error for invalid experiment', async () =>
+    {
+      sdk._getExperiment = jest.fn().mockRejectedValue(new Error('Experiment not found'));
+
+      await expect(sdk.trackMetric({
+        experimentID: 'invalid',
+        stage: 'stage1',
+        dimension: 'dim1',
+        treatment: Treatments.CONTROL,
+        metricName: 'metric1',
+        metricValue: 10
+      })).rejects.toThrow('Experiment not found');
+    });
+
+    it('should throw an error for invalid stage', async () =>
+    {
+      await expect(sdk.trackMetric({
+        experimentID: 'exp1',
+        stage: 'invalid',
+        dimension: 'dim1',
+        treatment: Treatments.CONTROL,
+        metricName: 'metric1',
+        metricValue: 10
+      })).rejects.toThrow('Stage invalid not found for experiment exp1');
+    });
+
+    it('should throw an error for invalid dimension', async () =>
+    {
+      await expect(sdk.trackMetric({
+        experimentID: 'exp1',
+        stage: 'stage1',
+        dimension: 'invalid',
+        treatment: Treatments.CONTROL,
+        metricName: 'metric1',
+        metricValue: 10
+      })).rejects.toThrow('Dimension invalid not found for stage stage1 in experiment exp1');
+    });
+
+    // New test cases for additional coverage
+    it('should handle empty treatment correctly', async () =>
+    {
+      await sdk.trackMetric({
+        experimentID: 'exp1',
+        stage: 'stage1',
+        dimension: 'dim1',
+        treatment: Treatments.NONE,
+        metricName: 'metric1',
+        metricValue: 10
+      });
+
+      expect(sdk.buffer).toEqual({});
+    });
+
+    it('should track multiple metrics correctly', async () =>
+    {
+      await sdk.trackMetric({
+        experimentID: 'exp1',
+        stage: 'stage1',
+        dimension: 'dim1',
+        treatment: Treatments.CONTROL,
+        metricName: 'metric1',
+        metricValue: 10
+      });
+
+      await sdk.trackMetric({
+        experimentID: 'exp1',
+        stage: 'stage1',
+        dimension: 'dim1',
+        treatment: Treatments.CONTROL,
+        metricName: 'metric2',
+        metricValue: 20,
+        aggregationType: AggregationTypes.AVERAGE
+      });
+
+      expect(sdk.buffer).toHaveProperty('exp1-stage1-dim1-C-metric1-sum');
+      expect(sdk.buffer).toHaveProperty('exp1-stage1-dim1-C-metric2-average');
+    });
+
+    it('should accumulate values for the same metric', async () =>
+    {
+      await sdk.trackMetric({
+        experimentID: 'exp1',
+        stage: 'stage1',
+        dimension: 'dim1',
+        treatment: Treatments.CONTROL,
+        metricName: 'metric1',
+        metricValue: 10
+      });
+
+      await sdk.trackMetric({
+        experimentID: 'exp1',
+        stage: 'stage1',
+        dimension: 'dim1',
+        treatment: Treatments.CONTROL,
+        metricName: 'metric1',
+        metricValue: 20
+      });
+
+      expect(sdk.buffer['exp1-stage1-dim1-C-metric1-sum']).toEqual({
+        sum: 30,
+        count: 2,
+        values: []
+      });
+    });
+  });
+
+  describe('_flushMetrics', () =>
+  {
+    beforeEach(() =>
+    {
+      sdk = new SimpleABSDK(mockApiURL, mockApiKey);
+    });
+
+    it('should flush sum metrics correctly', async () =>
+    {
+      sdk.buffer = {
+        'exp1-stage1-dim1-treatment1-metric1-sum': {
+          sum: 30,
+          count: 3,
+          values: []
+        }
+      };
+
+      await sdk._flushMetrics();
+
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/metrics/track/batch', {
+        metrics: [{
+          experimentID: 'exp1',
+          stage: 'stage1',
+          dimension: 'dim1',
+          treatment: 'treatment1',
+          metricName: 'metric1',
+          aggregationType: 'sum',
+          value: 30,
+          count: 3
+        }]
+      });
+
+      expect(sdk.buffer).toEqual({});
+    });
+
+    it('should flush average metrics correctly', async () =>
+    {
+      sdk.buffer = {
+        'exp1-stage1-dim1-treatment1-metric1-average': {
+          sum: 30,
+          count: 3,
+          values: []
+        }
+      };
+
+      await sdk._flushMetrics();
+
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/metrics/track/batch', {
+        metrics: [{
+          experimentID: 'exp1',
+          stage: 'stage1',
+          dimension: 'dim1',
+          treatment: 'treatment1',
+          metricName: 'metric1',
+          aggregationType: 'average',
+          value: 10,
+          count: 3
+        }]
+      });
+
+      expect(sdk.buffer).toEqual({});
+    });
+
+    it('should flush percentile metrics correctly', async () =>
+    {
+      sdk.buffer = {
+        'exp1-stage1-dim1-treatment1-metric1-percentile': {
+          sum: 30,
+          count: 3,
+          values: [5, 10, 15]
+        }
+      };
+
+      await sdk._flushMetrics();
+
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/metrics/track/batch', {
+        metrics: [{
+          experimentID: 'exp1',
+          stage: 'stage1',
+          dimension: 'dim1',
+          treatment: 'treatment1',
+          metricName: 'metric1',
+          p50: 10,
+          p90: 15,
+          p99: 15,
+          count: 3
+        }]
+      });
+
+      expect(sdk.buffer).toEqual({});
+    });
+
+    it('should handle API errors during flush', async () =>
+    {
+      sdk.buffer = {
+        'exp1-stage1-dim1-treatment1-metric1-sum': {
+          sum: 30,
+          count: 3,
+          values: []
+        }
+      };
+
+      mockAxiosInstance.post.mockRejectedValue(new Error('API error'));
+
+      await sdk._flushMetrics();
+
+      expect(mockAxiosInstance.post).toHaveBeenCalled();
+      expect(sdk.buffer).toEqual({}); // Buffer should be cleared even if API call fails
+    });
+  });
+
 });

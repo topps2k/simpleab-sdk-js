@@ -32,6 +32,22 @@ class AggregationTypes
   }
 }
 
+// Class for treatment types
+class Treatments
+{
+  static NONE = '';  // No treatment
+  static CONTROL = 'C';  // Control treatment
+
+  // Dynamically create T1 to T255 treatments
+  static TREATMENTS = Array.from({ length: 255 }, (_, i) => `T${i + 1}`);
+
+  static isValid(type)
+  {
+    return [this.NONE, this.CONTROL, ...this.TREATMENTS].includes(type);
+  }
+}
+
+
 class SimpleABSDK
 {
   constructor(apiURL, apiKey, experiments = [], flushInterval = FlushIntervals.ONE_MINUTE)
@@ -259,6 +275,22 @@ class SimpleABSDK
    */
   async trackMetric({ experimentID, stage, dimension, treatment, metricName, metricValue, aggregationType = AggregationTypes.SUM })
   {
+
+    if (!Treatments.isValid(treatment)) 
+    {
+      throw new Error('Invalid treatment string');
+    }
+
+    // Validate aggregation type
+    if (!AggregationTypes.isValid(aggregationType))
+    {
+      throw new Error(`Invalid aggregation type: ${aggregationType}`);
+    }
+
+    if (treatment === '')
+    {
+      return;
+    }
     // Validate experiment, stage, and dimension
     const experiment = await this._getExperiment(experimentID);
     const stageData = experiment.stages.find(s => s.stage === stage);
@@ -272,10 +304,10 @@ class SimpleABSDK
       throw new Error(`Dimension ${dimension} not found for stage ${stage} in experiment ${experimentID}`);
     }
 
-    // Validate aggregation type
-    if (!AggregationTypes.isValid(aggregationType))
+    const treatmentData = experiment.treatments.find(t => t.id === treatment);
+    if (!treatmentData)
     {
-      throw new Error(`Invalid aggregation type: ${aggregationType}`);
+      throw new Error(`Treatment ${treatment} in experiment ${experimentID}`);
     }
 
     const key = `${experimentID}-${stage}-${dimension}-${treatment}-${metricName}-${aggregationType}`;
@@ -372,12 +404,12 @@ class SimpleABSDK
     try
     {
       await this.client.post('/metrics/track/batch', { metrics: metricsBatch });
-      console.log('Metrics batch sent successfully');
-    } catch (error)
+    }
+    catch (error)
     {
       console.error('Error sending metrics batch:', error);
     }
   }
 }
 
-module.exports = { SimpleABSDK, BaseAPIUrls, AggregationTypes };
+module.exports = { SimpleABSDK, BaseAPIUrls, AggregationTypes, Treatments };

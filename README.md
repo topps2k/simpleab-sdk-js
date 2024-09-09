@@ -11,7 +11,7 @@ This is the JavaScript version of the SimpleAB SDK, providing powerful functiona
 - Local caching for improved performance
 - Automatic error handling and retry mechanism
 - Built-in support for common API URLs
-- Client-side metrics tracking and aggregation
+- Client-side metrics tracking and aggregation with configurable flush interval
 
 ## Installation
 
@@ -26,15 +26,15 @@ npm install simpleab-sdk-js
 Here's a basic example of how to use the SimpleAB SDK:
 
 ```javascript
-const { SimpleABSDK, BaseAPIUrls, AggregationTypes, Treatments } = require('simpleab-sdk-js');
+const { SimpleABSDK, BaseAPIUrls, AggregationTypes, Treatments, Stages, FlushIntervals } = require('simpleab-sdk-js');
 
 // Initialize the SDK
-const sdk = new SimpleABSDK(BaseAPIUrls.CAPTCHIFY_NA, 'your-api-key', ['experiment1', 'experiment2']);
+const sdk = new SimpleABSDK(BaseAPIUrls.CAPTCHIFY_NA, 'your-api-key', ['experiment1', 'experiment2'], FlushIntervals.ONE_MINUTE);
 
 // Using async/await
 async function runExperiment() {
   try {
-    const treatment = await sdk.getTreatment('experiment1', 'stage1', 'USA', 'user123' );
+    const treatment = await sdk.getTreatment('experiment1', Stages.BETA, 'USA', 'user123' );
     console.log('Treatment:', treatment);
     // Apply the treatment in your application
     // Note: If no allocation is found, treatment will be an empty string ('')
@@ -48,7 +48,7 @@ async function runExperiment() {
     // Track a metric
     await sdk.trackMetric({
       experimentID: 'experiment1',
-      stage: 'stage1',
+      stage: Stages.BETA,
       dimension: 'USA',
       treatment: treatment,
       metricName: 'clicks',
@@ -65,7 +65,7 @@ async function runExperiment() {
 runExperiment();
 
 // Using Promises
-sdk.getTreatment('experiment2', 'stage1', 'default', 'user456')
+sdk.getTreatment('experiment2', Stages.PROD, 'default', 'user456')
   .then(treatment => {
     console.log('Treatment:', treatment);
     // Apply the treatment in your application
@@ -92,7 +92,7 @@ Creates a new instance of the SimpleAB SDK.
 - `apiURL` (string): The URL of the SimpleAB API. You can use the `BaseAPIUrls` object for common API endpoints.
 - `apiKey` (string): Your API key for authentication.
 - `experiments` (string[]): An array of experiment IDs to preload (optional).
-- `flushInterval` (number): The interval in milliseconds for flushing tracked metrics (optional, default is 60000 ms or 1 minute).
+- `flushInterval` (number): The interval in milliseconds for flushing tracked metrics (optional, default is 60000 ms or 1 minute). Use the `FlushIntervals` class for predefined values.
 
 ### `BaseAPIUrls`
 
@@ -100,12 +100,19 @@ A class containing static properties for common API URLs:
 
 - `BaseAPIUrls.CAPTCHIFY_NA`: The API URL for the North America region.
 
+### `FlushIntervals`
+
+A class containing static properties for flush interval values:
+
+- `FlushIntervals.ONE_MINUTE`: 60000 ms (1 minute)
+- `FlushIntervals.FIVE_MINUTE`: 300000 ms (5 minutes)
+
 ### `sdk.getTreatment(experimentID, stage, dimension, allocationKey)`
 
 Gets the treatment for a specific experiment, stage, allocation key, and dimension.
 
 - `experimentID` (string): The ID of the experiment.
-- `stage` (string): The stage of the experiment.
+- `stage` (string): The stage of the experiment. Use values from the `Stages` class.
 - `dimension` (string): The dimension of the experiment.
 - `allocationKey` (string): A unique identifier for the user or entity being tested.
 
@@ -117,9 +124,9 @@ Tracks a metric for a specific experiment, stage, dimension, and treatment.
 
 - `params` (object): An object containing the following properties:
   - `experimentID` (string): The ID of the experiment.
-  - `stage` (string): The stage of the experiment.
+  - `stage` (string): The stage of the experiment. Use values from the `Stages` class.
   - `dimension` (string): The dimension of the experiment.
-  - `treatment` (string): The treatment group for the experiment.
+  - `treatment` (string): The treatment group for the experiment. Use values from the `Treatments` class.
   - `metricName` (string): The name of the metric.
   - `metricValue` (number): The value of the metric.
   - `aggregationType` (string): The type of aggregation to use for this metric. Use values from the `AggregationTypes` enum.
@@ -146,6 +153,13 @@ An enum containing the supported treatment types:
 - `Treatments.CONTROL`: Control treatment ('C').
 - `Treatments.T1` to `Treatments.T255`: Treatment groups ('T1' to 'T255').
 
+### `Stages`
+
+An enum containing common experimental stages:
+
+- `Stages.BETA`: Beta stage.
+- `Stages.PROD`: Production stage.
+
 ## Best Practices
 
 1. **Initialization**: Initialize the SDK once when your application starts and reuse the instance throughout your app. Use the `BaseAPIUrls` object for common API endpoints.
@@ -165,6 +179,8 @@ An enum containing the supported treatment types:
 8. **Metric Tracking**: Use the `trackMetric()` method to record important user interactions and outcomes. Choose appropriate aggregation types for your metrics to get meaningful insights.
 
 9. **Flush Interval**: Consider the trade-off between real-time data and network usage when setting the `flushInterval`. A shorter interval provides more up-to-date data but increases network requests.
+
+10. **Validation**: The SDK performs validation on treatment, stage, and aggregation type. Ensure you use valid values from the respective enums to avoid errors.
 
 ## Contributing
 

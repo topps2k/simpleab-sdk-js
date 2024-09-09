@@ -26,7 +26,7 @@ declare module 'simpleab-sdk' {
     static readonly PERCENTILE: string;
     static isValid(type: string): boolean;
   }
-
+  
   /**
    * Treatment types.
    */
@@ -34,6 +34,15 @@ declare module 'simpleab-sdk' {
     static readonly NONE: string;
     static readonly CONTROL: string;
     static readonly TREATMENTS: string[];
+    static isValid(type: string): boolean;
+  }
+
+  /**
+   * Experimental stages.
+   */
+  export class Stages {
+    static readonly BETA: string;
+    static readonly PROD: string;
     static isValid(type: string): boolean;
   }
 

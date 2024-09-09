@@ -67,7 +67,7 @@ describe('SimpleABSDK', () =>
         exposureRandomizationToken: 'exposure-token',
         stages: [
           {
-            stage: 'stage1',
+            stage: 'Beta',
             stageDimensions: [
               {
                 dimension: 'dim1',
@@ -87,7 +87,7 @@ describe('SimpleABSDK', () =>
       sdk._isInExposureBucket = jest.fn().mockReturnValue(true);
       sdk._determineTreatment = jest.fn().mockReturnValue('treatment1');
 
-      const result = await sdk.getTreatment('exp1', 'stage1', 'dim1', 'user1');
+      const result = await sdk.getTreatment('exp1', 'Beta', 'dim1', 'user1');
       expect(result).toBe('treatment1');
       sdk.close();
     });
@@ -101,7 +101,7 @@ describe('SimpleABSDK', () =>
 
       sdk._getExperiment = jest.fn().mockResolvedValue(mockExperiment);
 
-      const result = await sdk.getTreatment('exp1', 'stage1', 'dim1', 'user1');
+      const result = await sdk.getTreatment('exp1', 'Beta', 'dim1', 'user1');
       expect(result).toBe('');
       sdk.close();
     });
@@ -146,7 +146,7 @@ describe('SimpleABSDK', () =>
         exposureRandomizationToken: 'exposure-token',
         stages: [
           {
-            stage: 'stage1',
+            stage: 'Beta',
             stageDimensions: [
               {
                 dimension: 'dim1',
@@ -165,7 +165,7 @@ describe('SimpleABSDK', () =>
             allocationKey: 'user1',
             stageOverrides: [
               {
-                stage: 'stage1',
+                stage: 'Beta',
                 enabled: true,
                 treatment: 'override_treatment',
                 dimensions: ['dim1']
@@ -177,7 +177,7 @@ describe('SimpleABSDK', () =>
 
       sdk._getExperiment = jest.fn().mockResolvedValue(mockExperiment);
 
-      const result = await sdk.getTreatment('exp1', 'stage1', 'dim1', 'user1');
+      const result = await sdk.getTreatment('exp1', 'Beta', 'dim1', 'user1');
       expect(result).toBe('override_treatment');
       sdk.close();
     });
@@ -190,7 +190,7 @@ describe('SimpleABSDK', () =>
         exposureRandomizationToken: 'exposure-token',
         stages: [
           {
-            stage: 'stage1',
+            stage: 'Beta',
             stageDimensions: [
               {
                 dimension: 'dim1',
@@ -209,7 +209,7 @@ describe('SimpleABSDK', () =>
             allocationKey: 'user1',
             stageOverrides: [
               {
-                stage: 'stage1',
+                stage: 'Beta',
                 enabled: true,
                 treatment: 'override_treatment',
                 dimensions: ['dim2']
@@ -223,7 +223,7 @@ describe('SimpleABSDK', () =>
       sdk._isInExposureBucket = jest.fn().mockReturnValue(true);
       sdk._determineTreatment = jest.fn().mockReturnValue('treatment1');
 
-      const result = await sdk.getTreatment('exp1', 'stage1', 'dim1', 'user1');
+      const result = await sdk.getTreatment('exp1', 'Beta', 'dim1', 'user1');
       expect(result).toBe('treatment1');
       sdk.close();
     });
@@ -452,7 +452,7 @@ describe('SimpleABSDK', () =>
         id: 'exp1',
         stages: [
           {
-            stage: 'stage1',
+            stage: 'Beta',
             stageDimensions: [
               {
                 dimension: 'dim1',
@@ -473,7 +473,7 @@ describe('SimpleABSDK', () =>
     {
       await sdk.trackMetric({
         experimentID: 'exp1',
-        stage: 'stage1',
+        stage: 'Beta',
         dimension: 'dim1',
         treatment: Treatments.CONTROL,
         metricName: 'metric1',
@@ -481,8 +481,8 @@ describe('SimpleABSDK', () =>
         aggregationType: AggregationTypes.SUM
       });
 
-      expect(sdk.buffer).toHaveProperty('exp1-stage1-dim1-C-metric1-sum');
-      expect(sdk.buffer['exp1-stage1-dim1-C-metric1-sum']).toEqual({
+      expect(sdk.buffer).toHaveProperty('exp1-Beta-dim1-C-metric1-sum');
+      expect(sdk.buffer['exp1-Beta-dim1-C-metric1-sum']).toEqual({
         sum: 10,
         count: 1,
         values: []
@@ -493,7 +493,7 @@ describe('SimpleABSDK', () =>
     {
       await sdk.trackMetric({
         experimentID: 'exp1',
-        stage: 'stage1',
+        stage: 'Beta',
         dimension: 'dim1',
         treatment: Treatments.CONTROL,
         metricName: 'metric1',
@@ -501,8 +501,8 @@ describe('SimpleABSDK', () =>
         aggregationType: AggregationTypes.AVERAGE
       });
 
-      expect(sdk.buffer).toHaveProperty('exp1-stage1-dim1-C-metric1-average');
-      expect(sdk.buffer['exp1-stage1-dim1-C-metric1-average']).toEqual({
+      expect(sdk.buffer).toHaveProperty('exp1-Beta-dim1-C-metric1-average');
+      expect(sdk.buffer['exp1-Beta-dim1-C-metric1-average']).toEqual({
         sum: 10,
         count: 1,
         values: []
@@ -513,7 +513,7 @@ describe('SimpleABSDK', () =>
     {
       await sdk.trackMetric({
         experimentID: 'exp1',
-        stage: 'stage1',
+        stage: 'Beta',
         dimension: 'dim1',
         treatment: Treatments.CONTROL,
         metricName: 'metric1',
@@ -521,8 +521,8 @@ describe('SimpleABSDK', () =>
         aggregationType: AggregationTypes.PERCENTILE
       });
 
-      expect(sdk.buffer).toHaveProperty('exp1-stage1-dim1-C-metric1-percentile');
-      expect(sdk.buffer['exp1-stage1-dim1-C-metric1-percentile']).toEqual({
+      expect(sdk.buffer).toHaveProperty('exp1-Beta-dim1-C-metric1-percentile');
+      expect(sdk.buffer['exp1-Beta-dim1-C-metric1-percentile']).toEqual({
         sum: 10,
         count: 1,
         values: [10]
@@ -533,7 +533,7 @@ describe('SimpleABSDK', () =>
     {
       await expect(sdk.trackMetric({
         experimentID: 'exp1',
-        stage: 'stage1',
+        stage: 'Beta',
         dimension: 'dim1',
         treatment: Treatments.CONTROL,
         metricName: 'metric1',
@@ -546,7 +546,7 @@ describe('SimpleABSDK', () =>
     {
       await expect(sdk.trackMetric({
         experimentID: 'exp1',
-        stage: 'stage1',
+        stage: 'Beta',
         dimension: 'dim1',
         treatment: 'invalid_treatment',
         metricName: 'metric1',
@@ -560,7 +560,7 @@ describe('SimpleABSDK', () =>
 
       await expect(sdk.trackMetric({
         experimentID: 'invalid',
-        stage: 'stage1',
+        stage: 'Beta',
         dimension: 'dim1',
         treatment: Treatments.CONTROL,
         metricName: 'metric1',
@@ -577,19 +577,19 @@ describe('SimpleABSDK', () =>
         treatment: Treatments.CONTROL,
         metricName: 'metric1',
         metricValue: 10
-      })).rejects.toThrow('Stage invalid not found for experiment exp1');
+      })).rejects.toThrow('Invalid stage string');
     });
 
     it('should throw an error for invalid dimension', async () =>
     {
       await expect(sdk.trackMetric({
         experimentID: 'exp1',
-        stage: 'stage1',
+        stage: 'Beta',
         dimension: 'invalid',
         treatment: Treatments.CONTROL,
         metricName: 'metric1',
         metricValue: 10
-      })).rejects.toThrow('Dimension invalid not found for stage stage1 in experiment exp1');
+      })).rejects.toThrow('Dimension invalid not found for stage Beta in experiment exp1');
     });
 
     // New test cases for additional coverage
@@ -597,7 +597,7 @@ describe('SimpleABSDK', () =>
     {
       await sdk.trackMetric({
         experimentID: 'exp1',
-        stage: 'stage1',
+        stage: 'Beta',
         dimension: 'dim1',
         treatment: Treatments.NONE,
         metricName: 'metric1',
@@ -611,7 +611,7 @@ describe('SimpleABSDK', () =>
     {
       await sdk.trackMetric({
         experimentID: 'exp1',
-        stage: 'stage1',
+        stage: 'Beta',
         dimension: 'dim1',
         treatment: Treatments.CONTROL,
         metricName: 'metric1',
@@ -620,7 +620,7 @@ describe('SimpleABSDK', () =>
 
       await sdk.trackMetric({
         experimentID: 'exp1',
-        stage: 'stage1',
+        stage: 'Beta',
         dimension: 'dim1',
         treatment: Treatments.CONTROL,
         metricName: 'metric2',
@@ -628,15 +628,15 @@ describe('SimpleABSDK', () =>
         aggregationType: AggregationTypes.AVERAGE
       });
 
-      expect(sdk.buffer).toHaveProperty('exp1-stage1-dim1-C-metric1-sum');
-      expect(sdk.buffer).toHaveProperty('exp1-stage1-dim1-C-metric2-average');
+      expect(sdk.buffer).toHaveProperty('exp1-Beta-dim1-C-metric1-sum');
+      expect(sdk.buffer).toHaveProperty('exp1-Beta-dim1-C-metric2-average');
     });
 
     it('should accumulate values for the same metric', async () =>
     {
       await sdk.trackMetric({
         experimentID: 'exp1',
-        stage: 'stage1',
+        stage: 'Beta',
         dimension: 'dim1',
         treatment: Treatments.CONTROL,
         metricName: 'metric1',
@@ -645,14 +645,14 @@ describe('SimpleABSDK', () =>
 
       await sdk.trackMetric({
         experimentID: 'exp1',
-        stage: 'stage1',
+        stage: 'Beta',
         dimension: 'dim1',
         treatment: Treatments.CONTROL,
         metricName: 'metric1',
         metricValue: 20
       });
 
-      expect(sdk.buffer['exp1-stage1-dim1-C-metric1-sum']).toEqual({
+      expect(sdk.buffer['exp1-Beta-dim1-C-metric1-sum']).toEqual({
         sum: 30,
         count: 2,
         values: []
@@ -670,7 +670,7 @@ describe('SimpleABSDK', () =>
     it('should flush sum metrics correctly', async () =>
     {
       sdk.buffer = {
-        'exp1-stage1-dim1-treatment1-metric1-sum': {
+        'exp1-Beta-dim1-treatment1-metric1-sum': {
           sum: 30,
           count: 3,
           values: []
@@ -682,7 +682,7 @@ describe('SimpleABSDK', () =>
       expect(mockAxiosInstance.post).toHaveBeenCalledWith('/metrics/track/batch', {
         metrics: [{
           experimentID: 'exp1',
-          stage: 'stage1',
+          stage: 'Beta',
           dimension: 'dim1',
           treatment: 'treatment1',
           metricName: 'metric1',
@@ -698,7 +698,7 @@ describe('SimpleABSDK', () =>
     it('should flush average metrics correctly', async () =>
     {
       sdk.buffer = {
-        'exp1-stage1-dim1-treatment1-metric1-average': {
+        'exp1-Beta-dim1-treatment1-metric1-average': {
           sum: 30,
           count: 3,
           values: []
@@ -710,7 +710,7 @@ describe('SimpleABSDK', () =>
       expect(mockAxiosInstance.post).toHaveBeenCalledWith('/metrics/track/batch', {
         metrics: [{
           experimentID: 'exp1',
-          stage: 'stage1',
+          stage: 'Beta',
           dimension: 'dim1',
           treatment: 'treatment1',
           metricName: 'metric1',
@@ -726,7 +726,7 @@ describe('SimpleABSDK', () =>
     it('should flush percentile metrics correctly', async () =>
     {
       sdk.buffer = {
-        'exp1-stage1-dim1-treatment1-metric1-percentile': {
+        'exp1-Beta-dim1-treatment1-metric1-percentile': {
           sum: 30,
           count: 3,
           values: [5, 10, 15]
@@ -737,8 +737,9 @@ describe('SimpleABSDK', () =>
 
       expect(mockAxiosInstance.post).toHaveBeenCalledWith('/metrics/track/batch', {
         metrics: [{
+          aggregationType: "percentile",
           experimentID: 'exp1',
-          stage: 'stage1',
+          stage: 'Beta',
           dimension: 'dim1',
           treatment: 'treatment1',
           metricName: 'metric1',
@@ -755,7 +756,7 @@ describe('SimpleABSDK', () =>
     it('should handle API errors during flush', async () =>
     {
       sdk.buffer = {
-        'exp1-stage1-dim1-treatment1-metric1-sum': {
+        'exp1-Beta-dim1-treatment1-metric1-sum': {
           sum: 30,
           count: 3,
           values: []

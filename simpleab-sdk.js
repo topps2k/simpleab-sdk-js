@@ -47,6 +47,19 @@ class Treatments
   }
 }
 
+// Class for treatment types
+class Stages
+{
+  static BETA = 'Beta';  // No treatment
+  static PROD = 'Prod';  // Control treatment
+
+  static isValid(type)
+  {
+    return [this.BETA, this.PROD].includes(type);
+  }
+}
+
+
 
 class SimpleABSDK
 {
@@ -301,6 +314,11 @@ class SimpleABSDK
       throw new Error('Invalid treatment string');
     }
 
+    if (!Stages.isValid(stage)) 
+    {
+      throw new Error('Invalid stage string');
+    }
+
     // Validate aggregation type
     if (!AggregationTypes.isValid(aggregationType))
     {
@@ -433,4 +451,4 @@ class SimpleABSDK
   }
 }
 
-module.exports = { SimpleABSDK, BaseAPIUrls, AggregationTypes, Treatments };
+module.exports = { SimpleABSDK, BaseAPIUrls, AggregationTypes, Treatments, Stages };

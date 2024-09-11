@@ -801,7 +801,7 @@ describe('SimpleABSDK', () =>
     {
       // Add 20 metrics for testing error handling in batching
       sdk.buffer = {};
-      for (let i = 0; i < 20; i++)
+      for (let i = 0; i < 200; i++)
       {
         sdk.buffer[`exp1-Beta-dim1-treatment1-metric${i}-sum`] = {
           sum: 10,
@@ -819,7 +819,7 @@ describe('SimpleABSDK', () =>
 
       // Ensure the first batch was sent successfully
       expect(mockAxiosInstance.post).toHaveBeenCalledTimes(2);
-      expect(mockAxiosInstance.post.mock.calls[0][1].metrics).toHaveLength(10);
+      expect(mockAxiosInstance.post.mock.calls[0][1].metrics).toHaveLength(150);
 
       expect(sdk.buffer).toEqual({}); // Buffer should not be empty
     });
@@ -828,7 +828,7 @@ describe('SimpleABSDK', () =>
     {
       // Add 25 metrics to simulate batch processing
       sdk.buffer = {};
-      for (let i = 0; i < 25; i++)
+      for (let i = 0; i < 305; i++)
       {
         sdk.buffer[`exp1-Beta-dim1-treatment1-metric${i}-sum`] = {
           sum: 10,
@@ -845,8 +845,8 @@ describe('SimpleABSDK', () =>
       expect(mockAxiosInstance.post).toHaveBeenCalledTimes(3);
 
       // First two batches should have 10 metrics each
-      expect(mockAxiosInstance.post.mock.calls[0][1].metrics).toHaveLength(10);
-      expect(mockAxiosInstance.post.mock.calls[1][1].metrics).toHaveLength(10);
+      expect(mockAxiosInstance.post.mock.calls[0][1].metrics).toHaveLength(150);
+      expect(mockAxiosInstance.post.mock.calls[1][1].metrics).toHaveLength(150);
 
       // Last batch should have 5 metrics
       expect(mockAxiosInstance.post.mock.calls[2][1].metrics).toHaveLength(5);
@@ -862,7 +862,7 @@ describe('SimpleABSDK', () =>
 
     // Create 20 metrics to test parallel execution
     sdk.buffer = {};
-    for (let i = 0; i < 20; i++)
+    for (let i = 0; i < 200; i++)
     {
       sdk.buffer[`exp1-Beta-dim1-treatment1-metric${i}-sum`] = {
         sum: 10,

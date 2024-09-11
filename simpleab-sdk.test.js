@@ -607,6 +607,19 @@ describe('SimpleABSDK', () =>
       expect(sdk.buffer).toEqual({});
     });
 
+    it('should throw an error for negative metric value with SUM aggregation type', async () =>
+    {
+      await expect(sdk.trackMetric({
+        experimentID: 'exp1',
+        stage: 'Beta',
+        dimension: 'dim1',
+        treatment: Treatments.CONTROL,
+        metricName: 'metric1',
+        metricValue: -10,
+        aggregationType: AggregationTypes.SUM
+      })).rejects.toThrow('Metric metric1 cannot be negative for AggregrationTypes.SUM');
+    });
+
     it('should track multiple metrics correctly', async () =>
     {
       await sdk.trackMetric({
@@ -771,5 +784,101 @@ describe('SimpleABSDK', () =>
       expect(sdk.buffer).toEqual({}); // Buffer should be cleared even if API call fails
     });
   });
+
+  describe('_flushMetrics with batching', () =>
+  {
+    beforeEach(() =>
+    {
+      sdk = new SimpleABSDK(mockApiURL, mockApiKey);
+    });
+
+    afterEach(() =>
+    {
+      sdk.close(); // Ensure we clear intervals after tests
+    });
+
+    it('should handle errors in individual batches', async () =>
+    {
+      // Add 20 metrics for testing error handling in batching
+      sdk.buffer = {};
+      for (let i = 0; i < 20; i++)
+      {
+        sdk.buffer[`exp1-Beta-dim1-treatment1-metric${i}-sum`] = {
+          sum: 10,
+          count: 1,
+          values: []
+        };
+      }
+
+      // Simulate error for the second batch
+      mockAxiosInstance.post
+        .mockResolvedValueOnce({ status: 200 }) // First batch success
+        .mockRejectedValueOnce(new Error('API error for second batch')); // Second batch fails
+
+      await sdk._flushMetrics();
+
+      // Ensure the first batch was sent successfully
+      expect(mockAxiosInstance.post).toHaveBeenCalledTimes(2);
+      expect(mockAxiosInstance.post.mock.calls[0][1].metrics).toHaveLength(10);
+
+      expect(sdk.buffer).toEqual({}); // Buffer should not be empty
+    });
+
+    it('should batch metrics in sizes of 10', async () =>
+    {
+      // Add 25 metrics to simulate batch processing
+      sdk.buffer = {};
+      for (let i = 0; i < 25; i++)
+      {
+        sdk.buffer[`exp1-Beta-dim1-treatment1-metric${i}-sum`] = {
+          sum: 10,
+          count: 1,
+          values: []
+        };
+      }
+
+      mockAxiosInstance.post.mockResolvedValue({ status: 200 });
+
+      await sdk._flushMetrics();
+
+      // Ensure post was called 3 times (two full batches of 10 and one batch of 5)
+      expect(mockAxiosInstance.post).toHaveBeenCalledTimes(3);
+
+      // First two batches should have 10 metrics each
+      expect(mockAxiosInstance.post.mock.calls[0][1].metrics).toHaveLength(10);
+      expect(mockAxiosInstance.post.mock.calls[1][1].metrics).toHaveLength(10);
+
+      // Last batch should have 5 metrics
+      expect(mockAxiosInstance.post.mock.calls[2][1].metrics).toHaveLength(5);
+
+      // Ensure the buffer is cleared after flush
+      expect(sdk.buffer).toEqual({});
+    });
+  });
+
+  it('should execute batches in parallel', async () =>
+  {
+    jest.setTimeout(10000);  // Increase timeout for this specific test
+
+    // Create 20 metrics to test parallel execution
+    sdk.buffer = {};
+    for (let i = 0; i < 20; i++)
+    {
+      sdk.buffer[`exp1-Beta-dim1-treatment1-metric${i}-sum`] = {
+        sum: 10,
+        count: 1,
+        values: []
+      };
+    }
+
+    mockAxiosInstance.post.mockResolvedValue({ status: 200 });
+
+    await sdk._flushMetrics();
+
+    // Check if all batches were sent in parallel
+    expect(mockAxiosInstance.post).toHaveBeenCalledTimes(2);
+    expect(sdk.buffer).toEqual({});
+  });
+
 
 });

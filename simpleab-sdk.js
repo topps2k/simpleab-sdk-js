@@ -11,7 +11,6 @@ class BaseAPIUrls
 class FlushIntervals
 {
   static ONE_MINUTE = 60000;
-  static FIVE_MINUTE = 300000;
 
   static isValid(type)
   {
@@ -63,13 +62,8 @@ class Stages
 
 class SimpleABSDK
 {
-  constructor(apiURL, apiKey, experiments = [], flushInterval = FlushIntervals.ONE_MINUTE)
+  constructor(apiURL, apiKey, experiments = [])
   {
-    if (!FlushIntervals.isValid(flushInterval))
-    {
-      throw new Error("Invalid Flush Interval")
-    }
-
     this.apiURL = apiURL;
     this.apiKey = apiKey;
     this.experiments = experiments;
@@ -82,7 +76,7 @@ class SimpleABSDK
 
     // New properties for metric tracking
     this.buffer = {};
-    this.flushInterval = flushInterval;
+    this.flushInterval = FlushIntervals.ONE_MINUTE;
 
     if (experiments.length > 0)
     {
@@ -356,6 +350,11 @@ class SimpleABSDK
       this.buffer[key] = { sum: 0, count: 0, values: [] };
     }
 
+    if (aggregationType === AggregationTypes.SUM && metricValue < 0)
+    {
+      throw new Error(`Metric ${metricName} cannot be negative for AggregrationTypes.SUM`)
+    }
+
     this.buffer[key].sum += metricValue;
     this.buffer[key].count += 1;
 
@@ -438,16 +437,37 @@ class SimpleABSDK
       };
     });
 
-    this.buffer = {};  // Clear buffer after sending
 
+    // Batch metrics in sizes of 10
+    const batchSize = 10;
+    const batches = [];
+    for (let i = 0; i < metricsBatch.length; i += batchSize)
+    {
+      batches.push(metricsBatch.slice(i, i + batchSize));
+    }
+
+    // Send batches in parallel
     try
     {
-      await this.client.post('/metrics/track/batch', { metrics: metricsBatch });
+      await Promise.all(batches.map(async batch =>
+      {
+        try
+        {
+          await this.client.post('/metrics/track/batch', { metrics: batch });
+        } catch (error)
+        {
+          console.error('Error sending metrics batch:', error.message);
+
+        }
+      }));
+
+      this.buffer = {};  // Clear buffer after sending
     }
     catch (error)
     {
-      console.error('Error sending metrics batch:', error.message);
+      console.error('Error sending metrics batches:', error.message);
     }
+
   }
 }
 

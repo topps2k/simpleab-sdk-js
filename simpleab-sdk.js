@@ -438,8 +438,8 @@ class SimpleABSDK
     });
 
 
-    // Batch metrics in sizes of 10
-    const batchSize = 10;
+    // Batch metrics in sizes of 150
+    const batchSize = 150;
     const batches = [];
     for (let i = 0; i < metricsBatch.length; i += batchSize)
     {
@@ -457,7 +457,6 @@ class SimpleABSDK
         } catch (error)
         {
           console.error('Error sending metrics batch:', error.message);
-
         }
       }));
 

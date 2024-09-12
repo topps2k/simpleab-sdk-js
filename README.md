@@ -21,15 +21,29 @@ Install the SDK using npm:
 npm install simpleab-sdk-js
 ```
 
+## Setting Up SimpleAB
+
+Before using the SimpleAB SDK, you need to set up your account and experiments on captchify.com. Follow these steps:
+
+1. Go to [captchify.com](https://captchify.com) and sign up for an account if you haven't already.
+2. Once logged in, navigate to the SimpleAB section of the dashboard.
+3. Create a new organization or select an existing one.
+4. Create a new experiment by clicking on the "New Experiment" button.
+5. Configure your experiment by setting up stages, dimensions, and treatments.
+6. Generate an API key for your SimpleAB SDK integration.
+7. Copy your API key and experiment IDs, as you'll need them to initialize the SDK in your application.
+
+For more detailed instructions on setting up experiments and managing your SimpleAB account, please refer to the documentation on captchify.com.
+
 ## Usage
 
 Here's a basic example of how to use the SimpleAB SDK:
 
 ```javascript
-const { SimpleABSDK, BaseAPIUrls, AggregationTypes, Treatments, Stages, FlushIntervals } = require('simpleab-sdk-js');
+const { SimpleABSDK, BaseAPIUrls, AggregationTypes, Treatments, Stages } = require('simpleab-sdk-js');
 
 // Initialize the SDK
-const sdk = new SimpleABSDK(BaseAPIUrls.CAPTCHIFY_NA, 'your-api-key', ['experiment1', 'experiment2'], FlushIntervals.ONE_MINUTE);
+const sdk = new SimpleABSDK(BaseAPIUrls.CAPTCHIFY_NA, 'your-api-key', ['experiment1', 'experiment2']);
 
 // Using async/await
 async function runExperiment() {
@@ -85,14 +99,13 @@ sdk.getTreatment('experiment2', Stages.PROD, 'default', 'user456')
 
 ## API Reference
 
-### `new SimpleABSDK(apiURL, apiKey, experiments, flushInterval)`
+### `new SimpleABSDK(apiURL, apiKey, experiments)`
 
 Creates a new instance of the SimpleAB SDK.
 
 - `apiURL` (string): The URL of the SimpleAB API. You can use the `BaseAPIUrls` object for common API endpoints.
 - `apiKey` (string): Your API key for authentication.
 - `experiments` (string[]): An array of experiment IDs to preload (optional).
-- `flushInterval` (number): The interval in milliseconds for flushing tracked metrics (optional, default is 60000 ms or 1 minute). Use the `FlushIntervals` class for predefined values.
 
 ### `BaseAPIUrls`
 
@@ -100,12 +113,6 @@ A class containing static properties for common API URLs:
 
 - `BaseAPIUrls.CAPTCHIFY_NA`: The API URL for the North America region.
 
-### `FlushIntervals`
-
-A class containing static properties for flush interval values:
-
-- `FlushIntervals.ONE_MINUTE`: 60000 ms (1 minute)
-- `FlushIntervals.FIVE_MINUTE`: 300000 ms (5 minutes)
 
 ### `sdk.getTreatment(experimentID, stage, dimension, allocationKey)`
 
@@ -178,9 +185,7 @@ An enum containing common experimental stages:
 
 8. **Metric Tracking**: Use the `trackMetric()` method to record important user interactions and outcomes. Choose appropriate aggregation types for your metrics to get meaningful insights.
 
-9. **Flush Interval**: Consider the trade-off between real-time data and network usage when setting the `flushInterval`. A shorter interval provides more up-to-date data but increases network requests.
-
-10. **Validation**: The SDK performs validation on treatment, stage, and aggregation type. Ensure you use valid values from the respective enums to avoid errors.
+9. **Validation**: The SDK performs validation on treatment, stage, and aggregation type. Ensure you use valid values from the respective enums to avoid errors.
 
 ## Contributing
 

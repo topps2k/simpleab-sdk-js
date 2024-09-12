@@ -4,33 +4,36 @@ declare module 'simpleab-sdk' {
   /**
    * Base API URLs for different regions.
    */
-  export class BaseAPIUrls {
+  export class BaseAPIUrls
+  {
     static readonly CAPTCHIFY_NA: string;
   }
 
   /**
    * Flush intervals for metric tracking.
    */
-  export class FlushIntervals {
+  export class FlushIntervals
+  {
     static readonly ONE_MINUTE: number;
-    static readonly FIVE_MINUTE: number;
     static isValid(type: number): boolean;
   }
 
   /**
    * Aggregation types for metric tracking.
    */
-  export class AggregationTypes {
+  export class AggregationTypes
+  {
     static readonly SUM: string;
     static readonly AVERAGE: string;
     static readonly PERCENTILE: string;
     static isValid(type: string): boolean;
   }
-  
+
   /**
    * Treatment types.
    */
-  export class Treatments {
+  export class Treatments
+  {
     static readonly NONE: string;
     static readonly CONTROL: string;
     static readonly TREATMENTS: string[];
@@ -40,47 +43,55 @@ declare module 'simpleab-sdk' {
   /**
    * Experimental stages.
    */
-  export class Stages {
+  export class Stages
+  {
     static readonly BETA: string;
     static readonly PROD: string;
     static isValid(type: string): boolean;
   }
 
-  interface TreatmentAllocation {
+  interface TreatmentAllocation
+  {
     id: string;
     allocation: number;
   }
 
-  interface StageDimension {
+  interface StageDimension
+  {
     dimension: string;
     enabled: boolean;
     exposure: number;
     treatmentAllocations: TreatmentAllocation[];
   }
 
-  interface Stage {
+  interface Stage
+  {
     stage: string;
     stageDimensions: StageDimension[];
   }
 
-  interface StageOverride {
+  interface StageOverride
+  {
     stage: string;
     enabled: boolean;
     dimensions: string[];
     treatment: string;
   }
 
-  interface Override {
+  interface Override
+  {
     allocationKey: string;
     stageOverrides: StageOverride[];
   }
 
-  interface Treatment {
+  interface Treatment
+  {
     id: string;
     // Add other properties if needed
   }
 
-  interface Experiment {
+  interface Experiment
+  {
     id: string;
     allocationRandomizationToken: string;
     exposureRandomizationToken: string;
@@ -89,7 +100,8 @@ declare module 'simpleab-sdk' {
     treatments: Treatment[];
   }
 
-  interface TrackMetricParams {
+  interface TrackMetricParams
+  {
     experimentID: string;
     stage: string;
     dimension: string;
@@ -102,7 +114,8 @@ declare module 'simpleab-sdk' {
   /**
    * Main SDK class for SimpleAB integration.
    */
-  export class SimpleABSDK {
+  export class SimpleABSDK
+  {
     constructor(apiURL: string, apiKey: string, experiments?: string[], flushInterval?: number);
 
     getTreatment(experimentID: string, stage: string, dimension: string, allocationKey: string): Promise<string>;

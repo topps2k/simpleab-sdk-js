@@ -21,5 +21,10 @@
   },
   "devDependencies": {
     "jest": "^27.0.0"
+  },
+  "homepage": "https://captchify.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/topps2k/simpleab-sdk-js"
   }
 }

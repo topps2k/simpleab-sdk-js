@@ -1,6 +1,6 @@
-# SimpleAB SDK for JavaScript
+# Simple A/B SDK for JavaScript
 
-This is the JavaScript version of the SimpleAB SDK, providing powerful functionality for A/B testing and metrics tracking in web applications.
+This is the JavaScript version of the Simple A/B SDK, providing powerful functionality for A/B testing and metrics tracking in web applications.
 
 ## Features
 
@@ -21,23 +21,23 @@ Install the SDK using npm:
 npm install simpleab-sdk-js
 ```
 
-## Setting Up SimpleAB
+## Setting Up Simple A/B
 
-Before using the SimpleAB SDK, you need to set up your account and experiments on captchify.com. Follow these steps:
+Before using the Simple A/B SDK, you need to set up your account and experiments on captchify.com. Follow these steps:
 
 1. Go to [captchify.com](https://captchify.com) and sign up for an account if you haven't already.
-2. Once logged in, navigate to the SimpleAB section of the dashboard.
+2. Once logged in, navigate to the Simple A/B section of the dashboard.
 3. Create a new organization or select an existing one.
 4. Create a new experiment by clicking on the "New Experiment" button.
 5. Configure your experiment by setting up stages, dimensions, and treatments.
-6. Generate an API key for your SimpleAB SDK integration.
+6. Generate an API key for your Simple A/B SDK integration.
 7. Copy your API key and experiment IDs, as you'll need them to initialize the SDK in your application.
 
-For more detailed instructions on setting up experiments and managing your SimpleAB account, please refer to the documentation on captchify.com.
+For more detailed instructions on setting up experiments and managing your Simple A/B account, please refer to the documentation on captchify.com.
 
 ## Usage
 
-Here's a basic example of how to use the SimpleAB SDK:
+Here's a basic example of how to use the Simple A/B SDK:
 
 ```javascript
 const { SimpleABSDK, BaseAPIUrls, AggregationTypes, Treatments, Stages } = require('simpleab-sdk-js');
@@ -101,9 +101,9 @@ sdk.getTreatment('experiment2', Stages.PROD, 'default', 'user456')
 
 ### `new SimpleABSDK(apiURL, apiKey, experiments)`
 
-Creates a new instance of the SimpleAB SDK.
+Creates a new instance of the Simple A/B SDK.
 
-- `apiURL` (string): The URL of the SimpleAB API. You can use the `BaseAPIUrls` object for common API endpoints.
+- `apiURL` (string): The URL of the Simple A/B API. You can use the `BaseAPIUrls` object for common API endpoints.
 - `apiKey` (string): Your API key for authentication.
 - `experiments` (string[]): An array of experiment IDs to preload (optional).
 
@@ -189,7 +189,7 @@ An enum containing common experimental stages:
 
 ## Contributing
 
-We welcome contributions to the SimpleAB SDK! Please see our [Contributing Guide](CONTRIBUTING.md) for more details.
+We welcome contributions to the Simple A/B SDK! Please see our [Contributing Guide](CONTRIBUTING.md) for more details.
 
 ## License
 
@@ -197,4 +197,4 @@ This project is licensed under the ISC License. See the [LICENSE](LICENSE) file 
 
 ## Support
 
-If you encounter any issues or have questions about using the SimpleAB SDK, please [open an issue](https://github.com/yourusername/simpleab-sdk-js/issues) on our GitHub repository.
+If you encounter any issues or have questions about using the Simple A/B SDK, please [open an issue](https://github.com/yourusername/simpleab-sdk-js/issues) on our GitHub repository.

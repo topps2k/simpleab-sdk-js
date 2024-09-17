@@ -4,7 +4,7 @@ const md5 = require('./md5');
 // Class for support API URLs
 class BaseAPIUrls
 {
-  static CAPTCHIFY_NA = 'api.captchify.com';
+  static CAPTCHIFY_NA = 'https://api.captchify.com';
 }
 
 // Class for aggregation types

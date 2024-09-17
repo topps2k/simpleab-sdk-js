@@ -1,6 +1,7 @@
 import { AxiosInstance } from 'axios';
 
-declare module 'simpleab-sdk-js' {
+declare namespace SimpleABSDK
+{
   export class BaseAPIUrls
   {
     static readonly CAPTCHIFY_NA: string;
@@ -121,5 +122,5 @@ declare module 'simpleab-sdk-js' {
   }
 }
 
-export as namespace SimpleABSDK;
 export = SimpleABSDK;
+export as namespace SimpleABSDK;

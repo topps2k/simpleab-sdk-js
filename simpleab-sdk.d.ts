@@ -1,26 +1,17 @@
-declare module 'simpleab-sdk' {
-  import { AxiosInstance } from 'axios';
+import { AxiosInstance } from 'axios';
 
-  /**
-   * Base API URLs for different regions.
-   */
+declare module 'simpleab-sdk-js' {
   export class BaseAPIUrls
   {
     static readonly CAPTCHIFY_NA: string;
   }
 
-  /**
-   * Flush intervals for metric tracking.
-   */
   export class FlushIntervals
   {
     static readonly ONE_MINUTE: number;
     static isValid(type: number): boolean;
   }
 
-  /**
-   * Aggregation types for metric tracking.
-   */
   export class AggregationTypes
   {
     static readonly SUM: string;
@@ -29,9 +20,6 @@ declare module 'simpleab-sdk' {
     static isValid(type: string): boolean;
   }
 
-  /**
-   * Treatment types.
-   */
   export class Treatments
   {
     static readonly NONE: string;
@@ -40,9 +28,6 @@ declare module 'simpleab-sdk' {
     static isValid(type: string): boolean;
   }
 
-  /**
-   * Experimental stages.
-   */
   export class Stages
   {
     static readonly BETA: string;
@@ -50,13 +35,13 @@ declare module 'simpleab-sdk' {
     static isValid(type: string): boolean;
   }
 
-  interface TreatmentAllocation
+  export interface TreatmentAllocation
   {
     id: string;
     allocation: number;
   }
 
-  interface StageDimension
+  export interface StageDimension
   {
     dimension: string;
     enabled: boolean;
@@ -64,13 +49,13 @@ declare module 'simpleab-sdk' {
     treatmentAllocations: TreatmentAllocation[];
   }
 
-  interface Stage
+  export interface Stage
   {
     stage: string;
     stageDimensions: StageDimension[];
   }
 
-  interface StageOverride
+  export interface StageOverride
   {
     stage: string;
     enabled: boolean;
@@ -78,29 +63,23 @@ declare module 'simpleab-sdk' {
     treatment: string;
   }
 
-  interface Override
+  export interface Override
   {
     allocationKey: string;
     stageOverrides: StageOverride[];
   }
 
-  interface Treatment
-  {
-    id: string;
-    // Add other properties if needed
-  }
-
-  interface Experiment
+  export interface Experiment
   {
     id: string;
     allocationRandomizationToken: string;
     exposureRandomizationToken: string;
     stages: Stage[];
     overrides?: Override[];
-    treatments: Treatment[];
+    treatments: { id: string }[];
   }
 
-  interface TrackMetricParams
+  export interface TrackMetricParams
   {
     experimentID: string;
     stage: string;
@@ -111,17 +90,14 @@ declare module 'simpleab-sdk' {
     aggregationType?: string;
   }
 
-  /**
-   * Main SDK class for SimpleAB integration.
-   */
   export class SimpleABSDK
   {
-    constructor(apiURL: string, apiKey: string, experiments?: string[], flushInterval?: number);
-
+    constructor(apiURL: string, apiKey: string, experiments?: string[]);
     getTreatment(experimentID: string, stage: string, dimension: string, allocationKey: string): Promise<string>;
     trackMetric(params: TrackMetricParams): Promise<void>;
     close(): void;
 
+    private _checkForOverride(experiment: Experiment, stage: string, dimension: string, allocationKey: string): string | null;
     private _getExperiment(experimentID: string): Promise<Experiment>;
     private _loadExperiments(experimentIDs: string[]): Promise<void>;
     private _startCacheRefresh(): void;
@@ -129,10 +105,9 @@ declare module 'simpleab-sdk' {
     private _calculateHash(input: string): string;
     private _isInExposureBucket(hash: string, exposure: number): boolean;
     private _determineTreatment(hash: string, treatmentAllocations: TreatmentAllocation[]): string;
-    private _checkForOverride(experiment: Experiment, stage: string, dimension: string, allocationKey: string): string | null;
     private _startBufferFlush(): void;
-    private _flushMetrics(): Promise<void>;
     private _calculatePercentiles(values: number[], percentiles: number[]): { [key: number]: number };
+    private _flushMetrics(): Promise<void>;
 
     private readonly apiURL: string;
     private readonly apiKey: string;
@@ -140,8 +115,11 @@ declare module 'simpleab-sdk' {
     private readonly cache: Map<string, Experiment>;
     private readonly client: AxiosInstance;
     private cacheRefreshInterval: NodeJS.Timeout | null;
-    private buffer: { [key: string]: { sum: number, count: number, values: number[] } };
+    private buffer: { [key: string]: { sum: number; count: number; values: number[] } };
     private readonly flushInterval: number;
     private bufferFlushInterval: NodeJS.Timeout | null;
   }
 }
+
+export as namespace SimpleABSDK;
+export = SimpleABSDK;

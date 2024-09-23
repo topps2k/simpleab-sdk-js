@@ -461,6 +461,12 @@ class SimpleABSDK
       console.error('Error sending metrics batches:', error.message);
     }
   }
+
+  // New public method to manually trigger metrics flush
+  async flush()
+  {
+    await this._flushMetrics();
+  }
 }
 
 module.exports = { SimpleABSDK, BaseAPIUrls, AggregationTypes, Treatments, Stages };

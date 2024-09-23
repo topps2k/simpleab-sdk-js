@@ -917,4 +917,33 @@ describe('SimpleABSDK', () =>
     expect(global.fetch).toHaveBeenCalledTimes(2);
     expect(sdk.buffer).toEqual({});
   });
+
+  describe('flush', () =>
+  {
+    beforeEach(() =>
+    {
+      sdk = new SimpleABSDK(mockApiURL, mockApiKey);
+      sdk._flushMetrics = jest.fn().mockResolvedValue();
+    });
+
+    it('should call _flushMetrics', async () =>
+    {
+      await sdk.flush();
+      expect(sdk._flushMetrics).toHaveBeenCalled();
+    });
+
+    it('should return a promise that resolves when _flushMetrics completes', async () =>
+    {
+      const flushPromise = sdk.flush();
+      await expect(flushPromise).resolves.toBeUndefined();
+    });
+
+    it('should handle errors from _flushMetrics', async () =>
+    {
+      const error = new Error('Flush error');
+      sdk._flushMetrics.mockRejectedValue(error);
+      await expect(sdk.flush()).rejects.toThrow('Flush error');
+    });
+  });
+
 });

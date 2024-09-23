@@ -95,6 +95,7 @@ declare namespace SimpleABSDK
     getTreatment(experimentID: string, stage: string, dimension: string, allocationKey: string): Promise<string>;
     trackMetric(params: TrackMetricParams): Promise<void>;
     close(): void;
+    flush(): Promise<void>;
 
     private _checkForOverride(experiment: Experiment, stage: string, dimension: string, allocationKey: string): string | null;
     private _getExperiment(experimentID: string): Promise<Experiment>;

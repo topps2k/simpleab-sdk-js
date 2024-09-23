@@ -13,6 +13,7 @@ This is the JavaScript version of the Simple A/B SDK, providing powerful functio
 - Built-in support for common API URLs
 - Client-side metrics tracking and aggregation with configurable flush interval
 - Uses fetch API with a polyfill for universal compatibility
+- Manual flushing of metrics for more control over data transmission
 
 ## Installation
 
@@ -75,6 +76,9 @@ async function runExperiment() {
       aggregationType: AggregationTypes.SUM
     });
 
+    // Manually flush metrics
+    await sdk.flush();
+
   } catch (error) {
     console.error('Error:', error);
     // Handle the error or use a default treatment
@@ -118,7 +122,6 @@ A class containing static properties for common API URLs:
 
 - `BaseAPIUrls.CAPTCHIFY_NA`: The API URL for the North America region.
 
-
 ### `sdk.getTreatment(experimentID, stage, dimension, allocationKey)`
 
 Gets the treatment for a specific experiment, stage, allocation key, and dimension.
@@ -144,6 +147,12 @@ Tracks a metric for a specific experiment, stage, dimension, and treatment.
   - `aggregationType` (string): The type of aggregation to use for this metric. Use values from the `AggregationTypes` enum.
 
 Returns a Promise that resolves when the metric has been tracked successfully.
+
+### `sdk.flush()`
+
+Manually flushes the current metrics buffer to the server. This method can be used to ensure that all tracked metrics are sent to the server immediately, rather than waiting for the automatic flush interval.
+
+Returns a Promise that resolves when all metrics have been successfully sent to the server.
 
 ### `sdk.close()`
 
@@ -176,7 +185,7 @@ An enum containing common experimental stages:
 
 1. **Initialization**: Initialize the SDK once when your application starts and reuse the instance throughout your app. Use the `BaseAPIUrls` object for common API endpoints.
 
-2. **Error Handling**: Always include error handling when calling `getTreatment()` or `trackMetric()` to ensure your application degrades gracefully if the SDK encounters issues.
+2. **Error Handling**: Always include error handling when calling `getTreatment()`, `trackMetric()`, or `flush()` to ensure your application degrades gracefully if the SDK encounters issues.
 
 3. **Caching**: The SDK implements local caching to improve performance. Take advantage of this by using consistent allocation keys for the same user across sessions.
 
@@ -190,7 +199,9 @@ An enum containing common experimental stages:
 
 8. **Metric Tracking**: Use the `trackMetric()` method to record important user interactions and outcomes. Choose appropriate aggregation types for your metrics to get meaningful insights.
 
-9. **Validation**: The SDK performs validation on treatment, stage, and aggregation type. Ensure you use valid values from the respective enums to avoid errors.
+9. **Manual Flushing**: Use the `flush()` method when you need to ensure that all tracked metrics are sent to the server immediately, such as before the user leaves the page or after important events.
+
+10. **Validation**: The SDK performs validation on treatment, stage, and aggregation type. Ensure you use valid values from the respective enums to avoid errors.
 
 ## Contributing
 

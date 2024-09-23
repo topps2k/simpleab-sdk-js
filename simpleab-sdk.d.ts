@@ -1,5 +1,3 @@
-import { AxiosInstance } from 'axios';
-
 declare namespace SimpleABSDK
 {
   export class BaseAPIUrls
@@ -114,7 +112,6 @@ declare namespace SimpleABSDK
     private readonly apiKey: string;
     private readonly experiments: string[];
     private readonly cache: Map<string, Experiment>;
-    private readonly client: AxiosInstance;
     private cacheRefreshInterval: NodeJS.Timeout | null;
     private buffer: { [key: string]: { sum: number; count: number; values: number[] } };
     private readonly flushInterval: number;

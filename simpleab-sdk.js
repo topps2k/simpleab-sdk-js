@@ -1,5 +1,11 @@
-const axios = require('axios');
+// Removed axios requirement
 const md5 = require('./md5');
+
+// Add fetch polyfill if it's not available
+if (typeof fetch === 'undefined')
+{
+  require('isomorphic-fetch');
+}
 
 // Class for support API URLs
 class BaseAPIUrls
@@ -58,8 +64,6 @@ class Stages
   }
 }
 
-
-
 class SimpleABSDK
 {
   constructor(apiURL, apiKey, experiments = [])
@@ -68,11 +72,6 @@ class SimpleABSDK
     this.apiKey = apiKey;
     this.experiments = experiments;
     this.cache = new Map();
-    this.client = axios.create({
-      baseURL: apiURL,
-      timeout: 10000,
-      headers: { 'X-API-Key': apiKey }
-    });
 
     // New properties for metric tracking
     this.buffer = {};
@@ -89,16 +88,6 @@ class SimpleABSDK
     this._startCacheRefresh();
     this._startBufferFlush(); // Start the buffer flush interval
   }
-
-
-  /**
-   * Track a metric.
-   * @param {Object} params - Parameters for tracking the metric.
-   * @param {string} params.experimentID - The experiment ID.
-   * @param {string} params.stage - The experiment stage.
-   * @param {string} params.dimension - The dimension for the metric.
-   * @param {string} params.allocationKey - The dimension for the metric.
-   */
 
   async getTreatment(experimentID, stage, dimension, allocationKey)
   {
@@ -199,14 +188,21 @@ class SimpleABSDK
       for (let i = 0; i < experimentIDs.length; i += batchSize)
       {
         const batch = experimentIDs.slice(i, i + batchSize);
-        const response = await this.client.post('/experiments/batch/list', { ids: batch });
+        const response = await fetch(`${this.apiURL}/experiments/batch/list`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': this.apiKey
+          },
+          body: JSON.stringify({ ids: batch })
+        });
 
-        if (response.status !== 200)
+        if (!response.ok)
         {
           throw new Error(`API request failed with status code: ${response.status}`);
         }
 
-        const result = response.data;
+        const result = await response.json();
 
         for (const exp of result.success)
         {
@@ -288,27 +284,14 @@ class SimpleABSDK
     return '';
   }
 
-
-  /**
-   * Track a metric.
-   * @param {Object} params - Parameters for tracking the metric.
-   * @param {string} params.experimentID - The experiment ID.
-   * @param {string} params.stage - The experiment stage.
-   * @param {string} params.dimension - The dimension for the metric.
-   * @param {string} params.treatment - The treatment group for the experiment.
-   * @param {string} params.metricName - The name of the metric.
-   * @param {number} params.metricValue - The value of the metric.
-   * @param {string} params.aggregationType - 'sum', 'average', or 'percentile' defines how the metric should be aggregated.
-   */
   async trackMetric({ experimentID, stage, dimension, treatment, metricName, metricValue, aggregationType = AggregationTypes.SUM })
   {
-
-    if (!Treatments.isValid(treatment)) 
+    if (!Treatments.isValid(treatment))
     {
       throw new Error('Invalid treatment string');
     }
 
-    if (!Stages.isValid(stage)) 
+    if (!Stages.isValid(stage))
     {
       throw new Error('Invalid stage string');
     }
@@ -437,7 +420,6 @@ class SimpleABSDK
       };
     });
 
-
     // Batch metrics in sizes of 150
     const batchSize = 150;
     const batches = [];
@@ -453,7 +435,19 @@ class SimpleABSDK
       {
         try
         {
-          await this.client.post('/metrics/track/batch', { metrics: batch });
+          const response = await fetch(`${this.apiURL}/metrics/track/batch`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-API-Key': this.apiKey
+            },
+            body: JSON.stringify({ metrics: batch })
+          });
+
+          if (!response.ok)
+          {
+            throw new Error(`API request failed with status code: ${response.status}`);
+          }
         } catch (error)
         {
           console.error('Error sending metrics batch:', error.message);
@@ -466,7 +460,6 @@ class SimpleABSDK
     {
       console.error('Error sending metrics batches:', error.message);
     }
-
   }
 }
 

@@ -1,22 +1,19 @@
 const { SimpleABSDK, AggregationTypes, Treatments } = require('./simpleab-sdk');
-const axios = require('axios');
 
-jest.mock('axios');
+// Mock fetch
+global.fetch = jest.fn();
 
 describe('SimpleABSDK', () =>
 {
   let sdk;
   const mockApiURL = 'https://api.example.com';
   const mockApiKey = 'test-api-key';
-  const mockAxiosInstance = {
-    post: jest.fn()
-  };
 
   beforeEach(() =>
   {
     jest.clearAllMocks();
-    axios.create.mockReturnValue(mockAxiosInstance);
     jest.useFakeTimers();
+    global.fetch.mockClear();
   });
 
   afterEach(() =>
@@ -37,17 +34,6 @@ describe('SimpleABSDK', () =>
       expect(sdk.apiKey).toBe(mockApiKey);
       expect(sdk.experiments).toEqual([]);
       expect(sdk.cache).toBeInstanceOf(Map);
-      sdk.close();
-    });
-
-    it('should create axios instance with correct config', () =>
-    {
-      sdk = new SimpleABSDK(mockApiURL, mockApiKey);
-      expect(axios.create).toHaveBeenCalledWith({
-        baseURL: mockApiURL,
-        timeout: 10000,
-        headers: { 'X-API-Key': mockApiKey }
-      });
       sdk.close();
     });
   });
@@ -227,7 +213,6 @@ describe('SimpleABSDK', () =>
       expect(result).toBe('treatment1');
       sdk.close();
     });
-
   });
 
   describe('_loadExperiments', () =>
@@ -241,19 +226,24 @@ describe('SimpleABSDK', () =>
     {
       const mockExperiments = Array.from({ length: 120 }, (_, i) => ({ id: `exp${i + 1}`, name: `Experiment ${i + 1}` }));
       const mockResponses = [
-        { status: 200, data: { success: mockExperiments.slice(0, 50) } },
-        { status: 200, data: { success: mockExperiments.slice(50, 100) } },
-        { status: 200, data: { success: mockExperiments.slice(100) } }
+        { success: mockExperiments.slice(0, 50) },
+        { success: mockExperiments.slice(50, 100) },
+        { success: mockExperiments.slice(100) }
       ];
 
-      mockAxiosInstance.post.mockImplementation(() => Promise.resolve(mockResponses.shift()));
+      global.fetch.mockImplementation(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockResponses.shift())
+        })
+      );
 
       await sdk._loadExperiments(mockExperiments.map(exp => exp.id));
 
-      expect(mockAxiosInstance.post).toHaveBeenCalledTimes(3);
-      expect(mockAxiosInstance.post.mock.calls[0][1].ids).toHaveLength(50);
-      expect(mockAxiosInstance.post.mock.calls[1][1].ids).toHaveLength(50);
-      expect(mockAxiosInstance.post.mock.calls[2][1].ids).toHaveLength(20);
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+      expect(JSON.parse(global.fetch.mock.calls[0][1].body).ids).toHaveLength(50);
+      expect(JSON.parse(global.fetch.mock.calls[1][1].body).ids).toHaveLength(50);
+      expect(JSON.parse(global.fetch.mock.calls[2][1].body).ids).toHaveLength(20);
 
       mockExperiments.forEach(exp =>
       {
@@ -265,18 +255,19 @@ describe('SimpleABSDK', () =>
     it('should handle API errors for individual batches', async () =>
     {
       const mockExperiments = Array.from({ length: 70 }, (_, i) => ({ id: `exp${i + 1}`, name: `Experiment ${i + 1}` }));
-      const mockResponses = [
-        { status: 200, data: { success: mockExperiments.slice(0, 50) } },
-        Promise.reject(new Error('API error for second batch'))
-      ];
 
-      mockAxiosInstance.post.mockImplementation(() => mockResponses.shift());
+      global.fetch
+        .mockImplementationOnce(() => Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: mockExperiments.slice(0, 50) })
+        }))
+        .mockImplementationOnce(() => Promise.reject(new Error('API error for second batch')));
 
       await expect(sdk._loadExperiments(mockExperiments.map(exp => exp.id))).rejects.toThrow('API error for second batch');
 
-      expect(mockAxiosInstance.post).toHaveBeenCalledTimes(2);
-      expect(mockAxiosInstance.post.mock.calls[0][1].ids).toHaveLength(50);
-      expect(mockAxiosInstance.post.mock.calls[1][1].ids).toHaveLength(20);
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(JSON.parse(global.fetch.mock.calls[0][1].body).ids).toHaveLength(50);
+      expect(JSON.parse(global.fetch.mock.calls[1][1].body).ids).toHaveLength(20);
 
       mockExperiments.slice(0, 50).forEach(exp =>
       {
@@ -303,14 +294,16 @@ describe('SimpleABSDK', () =>
       mockExperiments.forEach(exp => sdk.cache.set(exp.id, exp));
 
       const updatedExperiments = mockExperiments.map(exp => ({ ...exp, updated: true }));
-      const mockResponse = { status: 200, data: { success: updatedExperiments } };
 
-      mockAxiosInstance.post.mockResolvedValue(mockResponse);
+      global.fetch.mockImplementationOnce(() => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ success: updatedExperiments })
+      }));
 
       await sdk._refreshCache();
 
-      expect(mockAxiosInstance.post).toHaveBeenCalledTimes(1);
-      expect(mockAxiosInstance.post.mock.calls[0][1].ids).toEqual(mockExperiments.map(exp => exp.id));
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(global.fetch.mock.calls[0][1].body).ids).toEqual(mockExperiments.map(exp => exp.id));
 
       updatedExperiments.forEach(exp =>
       {
@@ -324,12 +317,12 @@ describe('SimpleABSDK', () =>
       const mockExperiments = Array.from({ length: 5 }, (_, i) => ({ id: `exp${i + 1}`, name: `Experiment ${i + 1}` }));
       mockExperiments.forEach(exp => sdk.cache.set(exp.id, exp));
 
-      mockAxiosInstance.post.mockRejectedValue(new Error('API error during refresh'));
+      global.fetch.mockImplementationOnce(() => Promise.reject(new Error('API error during refresh')));
 
       await sdk._refreshCache();
 
-      expect(mockAxiosInstance.post).toHaveBeenCalledTimes(1);
-      expect(mockAxiosInstance.post.mock.calls[0][1].ids).toEqual(mockExperiments.map(exp => exp.id));
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(global.fetch.mock.calls[0][1].body).ids).toEqual(mockExperiments.map(exp => exp.id));
 
       // Ensure the cache remains unchanged
       mockExperiments.forEach(exp =>
@@ -443,6 +436,7 @@ describe('SimpleABSDK', () =>
       sdk.close();
     });
   });
+
   describe('trackMetric', () =>
   {
     beforeEach(() =>
@@ -592,7 +586,6 @@ describe('SimpleABSDK', () =>
       })).rejects.toThrow('Dimension invalid not found for stage Beta in experiment exp1');
     });
 
-    // New test cases for additional coverage
     it('should handle empty treatment correctly', async () =>
     {
       await sdk.trackMetric({
@@ -690,20 +683,32 @@ describe('SimpleABSDK', () =>
         }
       };
 
+      global.fetch.mockImplementationOnce(() => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({})
+      }));
+
       await sdk._flushMetrics();
 
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/metrics/track/batch', {
-        metrics: [{
-          experimentID: 'exp1',
-          stage: 'Beta',
-          dimension: 'dim1',
-          treatment: 'treatment1',
-          metricName: 'metric1',
-          aggregationType: 'sum',
-          value: 30,
-          count: 3
-        }]
-      });
+      expect(global.fetch).toHaveBeenCalledWith(`${mockApiURL}/metrics/track/batch`, expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'X-API-Key': mockApiKey
+        }),
+        body: JSON.stringify({
+          metrics: [{
+            experimentID: 'exp1',
+            stage: 'Beta',
+            dimension: 'dim1',
+            treatment: 'treatment1',
+            metricName: 'metric1',
+            aggregationType: 'sum',
+            value: 30,
+            count: 3
+          }]
+        })
+      }));
 
       expect(sdk.buffer).toEqual({});
     });
@@ -718,20 +723,32 @@ describe('SimpleABSDK', () =>
         }
       };
 
+      global.fetch.mockImplementationOnce(() => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({})
+      }));
+
       await sdk._flushMetrics();
 
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/metrics/track/batch', {
-        metrics: [{
-          experimentID: 'exp1',
-          stage: 'Beta',
-          dimension: 'dim1',
-          treatment: 'treatment1',
-          metricName: 'metric1',
-          aggregationType: 'average',
-          value: 10,
-          count: 3
-        }]
-      });
+      expect(global.fetch).toHaveBeenCalledWith(`${mockApiURL}/metrics/track/batch`, expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'X-API-Key': mockApiKey
+        }),
+        body: JSON.stringify({
+          metrics: [{
+            experimentID: 'exp1',
+            stage: 'Beta',
+            dimension: 'dim1',
+            treatment: 'treatment1',
+            metricName: 'metric1',
+            aggregationType: 'average',
+            value: 10,
+            count: 3
+          }]
+        })
+      }));
 
       expect(sdk.buffer).toEqual({});
     });
@@ -746,22 +763,34 @@ describe('SimpleABSDK', () =>
         }
       };
 
+      global.fetch.mockImplementationOnce(() => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({})
+      }));
+
       await sdk._flushMetrics();
 
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/metrics/track/batch', {
-        metrics: [{
-          aggregationType: "percentile",
-          experimentID: 'exp1',
-          stage: 'Beta',
-          dimension: 'dim1',
-          treatment: 'treatment1',
-          metricName: 'metric1',
-          p50: 10,
-          p90: 15,
-          p99: 15,
-          count: 3
-        }]
-      });
+      expect(global.fetch).toHaveBeenCalledWith(`${mockApiURL}/metrics/track/batch`, expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'X-API-Key': mockApiKey
+        }),
+        body: JSON.stringify({
+          metrics: [{
+            experimentID: 'exp1',
+            stage: 'Beta',
+            dimension: 'dim1',
+            treatment: 'treatment1',
+            metricName: 'metric1',
+            aggregationType: "percentile",
+            p50: 10,
+            p90: 15,
+            p99: 15,
+            count: 3
+          }]
+        })
+      }));
 
       expect(sdk.buffer).toEqual({});
     });
@@ -776,11 +805,11 @@ describe('SimpleABSDK', () =>
         }
       };
 
-      mockAxiosInstance.post.mockRejectedValue(new Error('API error'));
+      global.fetch.mockImplementationOnce(() => Promise.reject(new Error('API error')));
 
       await sdk._flushMetrics();
 
-      expect(mockAxiosInstance.post).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
       expect(sdk.buffer).toEqual({}); // Buffer should be cleared even if API call fails
     });
   });
@@ -799,7 +828,7 @@ describe('SimpleABSDK', () =>
 
     it('should handle errors in individual batches', async () =>
     {
-      // Add 20 metrics for testing error handling in batching
+      // Add 200 metrics for testing error handling in batching
       sdk.buffer = {};
       for (let i = 0; i < 200; i++)
       {
@@ -811,22 +840,25 @@ describe('SimpleABSDK', () =>
       }
 
       // Simulate error for the second batch
-      mockAxiosInstance.post
-        .mockResolvedValueOnce({ status: 200 }) // First batch success
-        .mockRejectedValueOnce(new Error('API error for second batch')); // Second batch fails
+      global.fetch
+        .mockImplementationOnce(() => Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({})
+        }))
+        .mockImplementationOnce(() => Promise.reject(new Error('API error for second batch')));
 
       await sdk._flushMetrics();
 
       // Ensure the first batch was sent successfully
-      expect(mockAxiosInstance.post).toHaveBeenCalledTimes(2);
-      expect(mockAxiosInstance.post.mock.calls[0][1].metrics).toHaveLength(150);
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(JSON.parse(global.fetch.mock.calls[0][1].body).metrics).toHaveLength(150);
 
-      expect(sdk.buffer).toEqual({}); // Buffer should not be empty
+      expect(sdk.buffer).toEqual({}); // Buffer should be empty
     });
 
-    it('should batch metrics in sizes of 10', async () =>
+    it('should batch metrics in sizes of 150', async () =>
     {
-      // Add 25 metrics to simulate batch processing
+      // Add 305 metrics to simulate batch processing
       sdk.buffer = {};
       for (let i = 0; i < 305; i++)
       {
@@ -837,19 +869,22 @@ describe('SimpleABSDK', () =>
         };
       }
 
-      mockAxiosInstance.post.mockResolvedValue({ status: 200 });
+      global.fetch.mockImplementation(() => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({})
+      }));
 
       await sdk._flushMetrics();
 
-      // Ensure post was called 3 times (two full batches of 10 and one batch of 5)
-      expect(mockAxiosInstance.post).toHaveBeenCalledTimes(3);
+      // Ensure fetch was called 3 times (two full batches of 150 and one batch of 5)
+      expect(global.fetch).toHaveBeenCalledTimes(3);
 
-      // First two batches should have 10 metrics each
-      expect(mockAxiosInstance.post.mock.calls[0][1].metrics).toHaveLength(150);
-      expect(mockAxiosInstance.post.mock.calls[1][1].metrics).toHaveLength(150);
+      // First two batches should have 150 metrics each
+      expect(JSON.parse(global.fetch.mock.calls[0][1].body).metrics).toHaveLength(150);
+      expect(JSON.parse(global.fetch.mock.calls[1][1].body).metrics).toHaveLength(150);
 
       // Last batch should have 5 metrics
-      expect(mockAxiosInstance.post.mock.calls[2][1].metrics).toHaveLength(5);
+      expect(JSON.parse(global.fetch.mock.calls[2][1].body).metrics).toHaveLength(5);
 
       // Ensure the buffer is cleared after flush
       expect(sdk.buffer).toEqual({});
@@ -860,7 +895,7 @@ describe('SimpleABSDK', () =>
   {
     jest.setTimeout(10000);  // Increase timeout for this specific test
 
-    // Create 20 metrics to test parallel execution
+    // Create 200 metrics to test parallel execution
     sdk.buffer = {};
     for (let i = 0; i < 200; i++)
     {
@@ -871,14 +906,15 @@ describe('SimpleABSDK', () =>
       };
     }
 
-    mockAxiosInstance.post.mockResolvedValue({ status: 200 });
+    global.fetch.mockImplementation(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({})
+    }));
 
     await sdk._flushMetrics();
 
     // Check if all batches were sent in parallel
-    expect(mockAxiosInstance.post).toHaveBeenCalledTimes(2);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
     expect(sdk.buffer).toEqual({});
   });
-
-
 });

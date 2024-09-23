@@ -12,6 +12,7 @@ This is the JavaScript version of the Simple A/B SDK, providing powerful functio
 - Automatic error handling and retry mechanism
 - Built-in support for common API URLs
 - Client-side metrics tracking and aggregation with configurable flush interval
+- Uses fetch API with a polyfill for universal compatibility
 
 ## Installation
 
@@ -20,6 +21,10 @@ Install the SDK using npm:
 ```bash
 npm install simpleab-sdk-js
 ```
+
+## Version 2.0.0 Update
+
+This version replaces the internal use of axios with the fetch API, providing a more lightweight solution with a fetch polyfill for universal compatibility. The SDK's public API remains unchanged, ensuring a seamless upgrade for existing users.
 
 ## Setting Up Simple A/B
 

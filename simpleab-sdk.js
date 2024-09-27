@@ -554,7 +554,7 @@ class SimpleABSDK
       throw new Error(`Stage ${stage} not found for experiment ${experiment.id}`);
     }
 
-    const dimensions = stageData.stageDimensions.map(sd => sd.dimension);
+    const dimensions = stageData.stageDimensions.filter(sd => sd.enabled).map(sd => sd.dimension);
 
     // Check for exact matches
     const exactMatches = [

@@ -654,7 +654,7 @@ class SimpleABSDK {
     if (!stageData) {
       throw new Error(`Stage ${stage} not found for experiment ${experiment.id}`);
     }
-    const dimensions = stageData.stageDimensions.map(sd => sd.dimension);
+    const dimensions = stageData.stageDimensions.filter(sd => sd.enabled).map(sd => sd.dimension);
 
     // Check for exact matches
     const exactMatches = [`${segment.countryCode}-${segment.deviceType}`, `${segment.countryCode}-all`, `${segment.region}-${segment.deviceType}`, `${segment.region}-all`, `GLO-${segment.deviceType}`, 'GLO-all'];

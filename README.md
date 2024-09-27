@@ -16,6 +16,7 @@ This is the JavaScript version of the Simple A/B SDK, providing powerful functio
 - Manual flushing of metrics for more control over data transmission
 - Segment information retrieval for user targeting
 - Wrapper functions for simplified segment-based treatment retrieval and metric tracking
+- Cross-compiled for ES5 compatibility
 
 ## Installation
 
@@ -24,6 +25,45 @@ Install the SDK using npm:
 ```bash
 npm install simpleab-sdk-js
 ```
+
+## Version 2.0.2 Update
+
+This version introduces cross-compilation for ES5, ensuring broader compatibility with older browsers and environments. The SDK is now compiled using Babel, which transpiles the code to ES5-compatible JavaScript.
+
+### Changes in this version:
+
+1. Added Babel configuration for ES5 compilation.
+2. Updated webpack configuration to use Babel loader.
+3. Added new dev dependencies for Babel and related plugins.
+4. Introduced multiple build outputs for different environments.
+
+### Build Outputs
+
+The SDK now provides multiple build outputs to support various environments:
+
+- `dist/simpleab-sdk.es5.js`: ES5-compatible version (main entry point)
+- `dist/simpleab-sdk.js`: Modern JavaScript version (module entry point)
+- `dist/simpleab-sdk.min.js`: Minified version for browsers
+- `dist/simpleab-sdk.es5.min.js`: Minified ES5-compatible version
+
+### Usage in Different Environments
+
+1. For Node.js or CommonJS environments:
+   ```javascript
+   const SimpleABSDK = require('simpleab-sdk-js');
+   ```
+
+2. For ES6 module environments:
+   ```javascript
+   import SimpleABSDK from 'simpleab-sdk-js';
+   ```
+
+3. For browser environments (via CDN or direct script inclusion):
+   ```html
+   <script src="path/to/simpleab-sdk.min.js"></script>
+   ```
+
+The existing functionality remains unchanged, ensuring a seamless upgrade for existing users.
 
 ## Version 2.0.0 Update
 
@@ -242,6 +282,8 @@ A class representing segment information:
 10. **Validation**: The SDK performs validation on treatment, stage, and aggregation type. Ensure you use valid values from the respective enums to avoid errors.
 
 11. **Segment Information**: Use the `getSegment()` method to retrieve user segment information for more targeted experiments and metrics tracking. Use the new wrapper functions `getTreatmentWithSegment()` and `trackMetricWithSegment()` for simplified segment-based operations.
+
+12. **Choose the Right Build**: Use the appropriate build output for your environment. For older browsers or environments requiring ES5 compatibility, use the ES5 build. For modern environments, use the standard build. In production environments, prefer the minified versions for better performance.
 
 ## Contributing
 

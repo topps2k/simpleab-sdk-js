@@ -1,11 +1,6 @@
 // Removed axios requirement
 const md5 = require('./md5');
-
-// Add fetch polyfill if it's not available
-if (typeof fetch === 'undefined')
-{
-  require('isomorphic-fetch');
-}
+const fetch = require('cross-fetch');
 
 // Class for support API URLs
 class BaseAPIUrls

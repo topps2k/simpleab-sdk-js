@@ -1,14 +1,18 @@
 {
   "name": "simpleab-sdk-js",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "JavaScript SDK for Captchify's Simple A/B",
-  "main": "dist/simpleab-sdk.js",
+  "main": "dist/simpleab-sdk.node.js",
+  "module": "dist/simpleab-sdk.browser.js",
+  "browser": "dist/simpleab-sdk.browser.min.js",
   "types": "simpleab-sdk.d.ts",
   "scripts": {
     "test": "jest",
     "coverage": "jest --coverage",
     "clean": "rimraf dist",
-    "build": "npm run clean && webpack --mode production"
+    "build": "npm run clean && webpack --mode production",
+    "build:dev": "npm run clean && webpack --mode development",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "captchify",
@@ -18,19 +22,23 @@
   ],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "isomorphic-fetch": "^3.0.0"
-  },
   "devDependencies": {
+    "@babel/core": "^7.15.0",
+    "@babel/plugin-transform-runtime": "^7.15.0",
+    "@babel/preset-env": "^7.15.0",
+    "babel-loader": "^8.2.2",
     "jest": "^27.0.0",
-    "webpack": "^5.75.0",
-    "webpack-cli": "^4.10.0",
+    "rimraf": "^3.0.2",
     "terser-webpack-plugin": "^5.3.6",
-    "rimraf": "^3.0.2"
+    "webpack": "^5.75.0",
+    "webpack-cli": "^4.10.0"
   },
   "homepage": "https://captchify.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/topps2k/simpleab-sdk-js"
+  },
+  "dependencies": {
+    "cross-fetch": "^4.0.0"
   }
 }

@@ -34,6 +34,17 @@ declare namespace SimpleABSDK
     static isValid(type: string): boolean;
   }
 
+  export class Segment
+  {
+    countryCode: string;
+    region: string;
+    deviceType: string;
+
+    constructor(countryCode: string, region: string, deviceType: string);
+    static fromJSON(json: { countryCode: string; region: string; deviceType: string }): Segment;
+    toJSON(): { countryCode: string; region: string; deviceType: string };
+  }
+
   export interface TreatmentAllocation
   {
     id: string;
@@ -89,6 +100,12 @@ declare namespace SimpleABSDK
     aggregationType?: string;
   }
 
+  export interface GetSegmentOptions
+  {
+    ip?: string;
+    userAgent?: string;
+  }
+
   export class SimpleABSDK
   {
     constructor(apiURL: string, apiKey: string, experiments?: string[]);
@@ -96,6 +113,7 @@ declare namespace SimpleABSDK
     trackMetric(params: TrackMetricParams): Promise<void>;
     close(): void;
     flush(): Promise<void>;
+    getSegment(options?: GetSegmentOptions): Promise<Segment>;
 
     private _checkForOverride(experiment: Experiment, stage: string, dimension: string, allocationKey: string): string | null;
     private _getExperiment(experimentID: string): Promise<Experiment>;

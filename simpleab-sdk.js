@@ -64,6 +64,31 @@ class Stages
   }
 }
 
+// New Segment class definition
+class Segment
+{
+  constructor(countryCode, region, deviceType)
+  {
+    this.countryCode = countryCode || '';
+    this.region = region || '';
+    this.deviceType = deviceType || '';
+  }
+
+  static fromJSON(json)
+  {
+    return new Segment(json.countryCode, json.region, json.deviceType);
+  }
+
+  toJSON()
+  {
+    return {
+      countryCode: this.countryCode,
+      region: this.region,
+      deviceType: this.deviceType
+    };
+  }
+}
+
 class SimpleABSDK
 {
   constructor(apiURL, apiKey, experiments = [])
@@ -467,6 +492,96 @@ class SimpleABSDK
   {
     await this._flushMetrics();
   }
+
+  // New method to get segment information
+  async getSegment(options = {})
+  {
+    try
+    {
+      const response = await fetch(`${this.apiURL}/segment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': this.apiKey
+        },
+        body: JSON.stringify({
+          ip: options.ip,
+          userAgent: options.userAgent
+        })
+      });
+
+      if (!response.ok)
+      {
+        throw new Error(`API request failed with status code: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      // Create and return a new Segment object
+      return Segment.fromJSON(result);
+    } catch (error)
+    {
+      console.error('Error getting segment:', error.message);
+      throw error;
+    }
+  }
+
+  // New wrapper function for getTreatment using Segment
+  async getTreatmentWithSegment(experimentID, stage, segment, allocationKey)
+  {
+    const exp = await this._getExperiment(experimentID);
+    const dimension = this._getDimensionFromSegment(exp, stage, segment);
+    if (dimension === '')
+    {
+      return '';
+    }
+    return this.getTreatment(experimentID, stage, dimension, allocationKey);
+  }
+
+  // New wrapper function for trackMetric using Segment
+  async trackMetricWithSegment({ experimentID, stage, segment, treatment, metricName, metricValue, aggregationType = AggregationTypes.SUM })
+  {
+    const exp = await this._getExperiment(experimentID);
+    const dimension = this._getDimensionFromSegment(exp, stage, segment);
+    if (dimension === '')
+    {
+      return;
+    }
+    return this.trackMetric({ experimentID, stage, dimension, treatment, metricName, metricValue, aggregationType });
+  }
+
+  // Helper function to determine the appropriate dimension based on the experiment, stage, and segment
+  _getDimensionFromSegment(experiment, stage, segment)
+  {
+    const stageData = experiment.stages.find(s => s.stage === stage);
+    if (!stageData)
+    {
+      throw new Error(`Stage ${stage} not found for experiment ${experiment.id}`);
+    }
+
+    const dimensions = stageData.stageDimensions.map(sd => sd.dimension);
+
+    // Check for exact matches
+    const exactMatches = [
+      `${segment.countryCode}-${segment.deviceType}`,
+      `${segment.countryCode}-all`,
+      `${segment.region}-${segment.deviceType}`,
+      `${segment.region}-all`,
+      `GLO-${segment.deviceType}`,
+      'GLO-all'
+    ];
+
+    for (const match of exactMatches)
+    {
+      if (dimensions.includes(match))
+      {
+        return match;
+      }
+    }
+
+    // If no match found, return empty string
+    return '';
+  }
 }
 
-module.exports = { SimpleABSDK, BaseAPIUrls, AggregationTypes, Treatments, Stages };
+module.exports = { SimpleABSDK, BaseAPIUrls, AggregationTypes, Treatments, Stages, Segment };

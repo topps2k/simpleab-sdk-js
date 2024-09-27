@@ -1,4 +1,4 @@
-const { SimpleABSDK, AggregationTypes, Treatments } = require('./simpleab-sdk');
+const { SimpleABSDK, AggregationTypes, Stages, Treatments, Segment } = require('./simpleab-sdk');
 
 // Mock fetch
 global.fetch = jest.fn();
@@ -943,6 +943,430 @@ describe('SimpleABSDK', () =>
       const error = new Error('Flush error');
       sdk._flushMetrics.mockRejectedValue(error);
       await expect(sdk.flush()).rejects.toThrow('Flush error');
+    });
+  });
+
+  describe('Segment', () =>
+  {
+    it('should create a Segment instance with correct properties', () =>
+    {
+      const segment = new Segment('US', 'NA', 'desktop');
+      expect(segment.countryCode).toBe('US');
+      expect(segment.region).toBe('NA');
+      expect(segment.deviceType).toBe('desktop');
+    });
+
+    it('should create a Segment instance from JSON', () =>
+    {
+      const json = { countryCode: 'UK', region: 'EU', deviceType: 'mobile' };
+      const segment = Segment.fromJSON(json);
+      expect(segment).toBeInstanceOf(Segment);
+      expect(segment.countryCode).toBe('UK');
+      expect(segment.region).toBe('EU');
+      expect(segment.deviceType).toBe('mobile');
+    });
+
+    it('should convert Segment instance to JSON', () =>
+    {
+      const segment = new Segment('CA', 'NA', 'tablet');
+      const json = segment.toJSON();
+      expect(json).toEqual({
+        countryCode: 'CA',
+        region: 'NA',
+        deviceType: 'tablet'
+      });
+    });
+  });
+
+  describe('getSegment', () =>
+  {
+    beforeEach(() =>
+    {
+      sdk = new SimpleABSDK(mockApiURL, mockApiKey);
+    });
+
+    it('should return a Segment instance with correct data', async () =>
+    {
+      const mockResponse = {
+        countryCode: 'US',
+        region: 'NA',
+        deviceType: 'desktop'
+      };
+
+      global.fetch.mockImplementationOnce(() => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      }));
+
+      const result = await sdk.getSegment({ ip: '123.45.67.89', userAgent: 'Mozilla/5.0...' });
+
+      expect(result).toBeInstanceOf(Segment);
+      expect(result.countryCode).toBe('US');
+      expect(result.region).toBe('NA');
+      expect(result.deviceType).toBe('desktop');
+
+      expect(global.fetch).toHaveBeenCalledWith(`${mockApiURL}/segment`, expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'X-API-Key': mockApiKey
+        }),
+        body: JSON.stringify({
+          ip: '123.45.67.89',
+          userAgent: 'Mozilla/5.0...'
+        })
+      }));
+    });
+
+    it('should handle API errors', async () =>
+    {
+      global.fetch.mockImplementationOnce(() => Promise.reject(new Error('API error')));
+
+      await expect(sdk.getSegment()).rejects.toThrow('API error');
+    });
+
+    it('should handle non-OK responses', async () =>
+    {
+      global.fetch.mockImplementationOnce(() => Promise.resolve({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request'
+      }));
+
+      await expect(sdk.getSegment()).rejects.toThrow('API request failed with status code: 400');
+    });
+
+    it('should send request without ip and userAgent if not provided', async () =>
+    {
+      const mockResponse = {
+        countryCode: 'UK',
+        region: 'EU',
+        deviceType: 'mobile'
+      };
+
+      global.fetch.mockImplementationOnce(() => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      }));
+
+      await sdk.getSegment();
+
+      expect(global.fetch).toHaveBeenCalledWith(`${mockApiURL}/segment`, expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'X-API-Key': mockApiKey
+        }),
+        body: JSON.stringify({})
+      }));
+    });
+  });
+
+  describe('getTreatmentWithSegment', () =>
+  {
+    beforeEach(() =>
+    {
+      sdk = new SimpleABSDK(mockApiURL, mockApiKey);
+    });
+
+    it('should return correct treatment for a given segment', async () =>
+    {
+      const mockExperiment = {
+        id: 'exp1',
+        allocationRandomizationToken: 'alloc-token',
+        exposureRandomizationToken: 'exposure-token',
+        stages: [
+          {
+            stage: 'Beta',
+            stageDimensions: [
+              {
+                dimension: 'US-mobile',
+                enabled: true,
+                exposure: 100,
+                treatmentAllocations: [
+                  { id: 'treatment1', allocation: 50 },
+                  { id: 'treatment2', allocation: 50 }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      sdk._getExperiment = jest.fn().mockResolvedValue(mockExperiment);
+      sdk._isInExposureBucket = jest.fn().mockReturnValue(true);
+      sdk._determineTreatment = jest.fn().mockReturnValue('treatment1');
+
+      const segment = new Segment('US', 'NA', 'mobile');
+      const result = await sdk.getTreatmentWithSegment('exp1', Stages.BETA, segment, 'user123');
+
+      expect(result).toBe('treatment1');
+      expect(sdk._getExperiment).toHaveBeenCalledWith('exp1');
+      expect(sdk._isInExposureBucket).toHaveBeenCalled();
+      expect(sdk._determineTreatment).toHaveBeenCalled();
+    });
+
+    it('should return empty string when no matching dimension is found', async () =>
+    {
+      const mockExperiment = {
+        id: 'exp1',
+        stages: [
+          {
+            stage: 'Beta',
+            stageDimensions: [
+              {
+                dimension: 'UK-desktop',
+                enabled: true,
+                exposure: 100,
+                treatmentAllocations: [
+                  { id: 'treatment1', allocation: 100 }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      sdk._getExperiment = jest.fn().mockResolvedValue(mockExperiment);
+
+      const segment = new Segment('US', 'NA', 'mobile');
+      const result = await sdk.getTreatmentWithSegment('exp1', Stages.BETA, segment, 'user123');
+
+      expect(result).toBe('');
+    });
+
+    it('should handle errors gracefully', async () =>
+    {
+      sdk._getExperiment = jest.fn().mockRejectedValue(new Error('API error'));
+
+      const segment = new Segment('US', 'NA', 'mobile');
+
+      await expect(sdk.getTreatmentWithSegment('exp1', Stages.BETA, segment, 'user123')).rejects.toThrow('API error');
+    });
+  });
+
+  describe('trackMetricWithSegment', () =>
+  {
+    beforeEach(() =>
+    {
+      sdk = new SimpleABSDK(mockApiURL, mockApiKey);
+    });
+
+    it('should track metric correctly for a given segment', async () =>
+    {
+      const mockExperiment = {
+        id: 'exp1',
+        stages: [
+          {
+            stage: 'Beta',
+            stageDimensions: [
+              {
+                dimension: 'US-mobile',
+                enabled: true
+              }
+            ]
+          }
+        ],
+        treatments: [
+          {
+            id: 'treatment1'
+          }
+        ]
+      };
+
+      sdk._getExperiment = jest.fn().mockResolvedValue(mockExperiment);
+      sdk.trackMetric = jest.fn().mockResolvedValue();
+
+      const segment = new Segment('US', 'NA', 'mobile');
+      await sdk.trackMetricWithSegment({
+        experimentID: 'exp1',
+        stage: Stages.BETA,
+        segment: segment,
+        treatment: 'treatment1',
+        metricName: 'clicks',
+        metricValue: 1,
+        aggregationType: AggregationTypes.SUM
+      });
+
+      expect(sdk._getExperiment).toHaveBeenCalledWith('exp1');
+      expect(sdk.trackMetric).toHaveBeenCalledWith({
+        experimentID: 'exp1',
+        stage: Stages.BETA,
+        dimension: 'US-mobile',
+        treatment: 'treatment1',
+        metricName: 'clicks',
+        metricValue: 1,
+        aggregationType: AggregationTypes.SUM
+      });
+    });
+
+    it('should not track metric when no matching dimension is found', async () =>
+    {
+      const mockExperiment = {
+        id: 'exp1',
+        stages: [
+          {
+            stage: 'Beta',
+            stageDimensions: [
+              {
+                dimension: 'UK-desktop',
+                enabled: true
+              }
+            ]
+          }
+        ]
+      };
+
+      sdk._getExperiment = jest.fn().mockResolvedValue(mockExperiment);
+      sdk.trackMetric = jest.fn().mockResolvedValue();
+
+      const segment = new Segment('US', 'NA', 'mobile');
+      await sdk.trackMetricWithSegment({
+        experimentID: 'exp1',
+        stage: Stages.BETA,
+        segment: segment,
+        treatment: 'treatment1',
+        metricName: 'clicks',
+        metricValue: 1,
+        aggregationType: AggregationTypes.SUM
+      });
+
+      expect(sdk._getExperiment).toHaveBeenCalledWith('exp1');
+      expect(sdk.trackMetric).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors gracefully', async () =>
+    {
+      sdk._getExperiment = jest.fn().mockRejectedValue(new Error('API error'));
+      sdk.trackMetric = jest.fn().mockResolvedValue();
+
+      const segment = new Segment('US', 'NA', 'mobile');
+      await expect(sdk.trackMetricWithSegment({
+        experimentID: 'exp1',
+        stage: Stages.BETA,
+        segment: segment,
+        treatment: 'treatment1',
+        metricName: 'clicks',
+        metricValue: 1,
+        aggregationType: AggregationTypes.SUM
+      })).rejects.toThrow('API error');
+
+      expect(sdk._getExperiment).toHaveBeenCalledWith('exp1');
+      expect(sdk.trackMetric).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('_getDimensionFromSegment', () =>
+  {
+    beforeEach(() =>
+    {
+      sdk = new SimpleABSDK(mockApiURL, mockApiKey);
+    });
+
+    it('should return exact match for country code and device type', () =>
+    {
+      const experiment = {
+        stages: [
+          {
+            stage: 'Beta',
+            stageDimensions: [
+              { dimension: 'US-mobile' },
+              { dimension: 'US-all' },
+              { dimension: 'GLO-all' }
+            ]
+          }
+        ]
+      };
+      const segment = new Segment('US', 'NA', 'mobile');
+      const result = sdk._getDimensionFromSegment(experiment, 'Beta', segment);
+      expect(result).toBe('US-mobile');
+    });
+
+    it('should return country code with "all" device type if exact match not found', () =>
+    {
+      const experiment = {
+        stages: [
+          {
+            stage: 'Beta',
+            stageDimensions: [
+              { dimension: 'US-all' },
+              { dimension: 'GLO-all' }
+            ]
+          }
+        ]
+      };
+      const segment = new Segment('US', 'NA', 'mobile');
+      const result = sdk._getDimensionFromSegment(experiment, 'Beta', segment);
+      expect(result).toBe('US-all');
+    });
+
+    it('should return region match if country code match not found', () =>
+    {
+      const experiment = {
+        stages: [
+          {
+            stage: 'Beta',
+            stageDimensions: [
+              { dimension: 'NA-mobile' },
+              { dimension: 'GLO-all' }
+            ]
+          }
+        ]
+      };
+      const segment = new Segment('US', 'NA', 'mobile');
+      const result = sdk._getDimensionFromSegment(experiment, 'Beta', segment);
+      expect(result).toBe('NA-mobile');
+    });
+
+    it('should return global match if no country or region match found', () =>
+    {
+      const experiment = {
+        stages: [
+          {
+            stage: 'Beta',
+            stageDimensions: [
+              { dimension: 'GLO-mobile' },
+              { dimension: 'GLO-all' }
+            ]
+          }
+        ]
+      };
+      const segment = new Segment('US', 'NA', 'mobile');
+      const result = sdk._getDimensionFromSegment(experiment, 'Beta', segment);
+      expect(result).toBe('GLO-mobile');
+    });
+
+    it('should return empty string if no match found', () =>
+    {
+      const experiment = {
+        stages: [
+          {
+            stage: 'Beta',
+            stageDimensions: [
+              { dimension: 'UK-desktop' }
+            ]
+          }
+        ]
+      };
+      const segment = new Segment('US', 'NA', 'mobile');
+      const result = sdk._getDimensionFromSegment(experiment, 'Beta', segment);
+      expect(result).toBe('');
+    });
+
+    it('should throw an error if stage is not found', () =>
+    {
+      const experiment = {
+        stages: [
+          {
+            stage: 'Beta',
+            stageDimensions: [
+              { dimension: 'US-mobile' }
+            ]
+          }
+        ]
+      };
+      const segment = new Segment('US', 'NA', 'mobile');
+      expect(() => sdk._getDimensionFromSegment(experiment, 'Prod', segment)).toThrow('Stage Prod not found for experiment undefined');
     });
   });
 

@@ -14,6 +14,8 @@ This is the JavaScript version of the Simple A/B SDK, providing powerful functio
 - Client-side metrics tracking and aggregation with configurable flush interval
 - Uses fetch API with a polyfill for universal compatibility
 - Manual flushing of metrics for more control over data transmission
+- Segment information retrieval for user targeting
+- Wrapper functions for simplified segment-based treatment retrieval and metric tracking
 
 ## Installation
 
@@ -25,7 +27,9 @@ npm install simpleab-sdk-js
 
 ## Version 2.0.0 Update
 
-This version replaces the internal use of axios with the fetch API, providing a more lightweight solution with a fetch polyfill for universal compatibility. The SDK's public API remains unchanged, ensuring a seamless upgrade for existing users.
+This version introduces new wrapper functions `getTreatmentWithSegment` and `trackMetricWithSegment`, which simplify the process of retrieving treatments and tracking metrics using Segment objects. These functions automatically determine the appropriate dimension based on the experiment and segment information.
+
+The existing functionality remains unchanged, ensuring a seamless upgrade for existing users.
 
 ## Setting Up Simple A/B
 
@@ -43,7 +47,7 @@ For more detailed instructions on setting up experiments and managing your Simpl
 
 ## Usage
 
-Here's a basic example of how to use the Simple A/B SDK:
+Here's a basic example of how to use the Simple A/B SDK, including the new segment-based wrapper functions:
 
 ```javascript
 const { SimpleABSDK, BaseAPIUrls, AggregationTypes, Treatments, Stages } = require('simpleab-sdk-js');
@@ -54,10 +58,15 @@ const sdk = new SimpleABSDK(BaseAPIUrls.CAPTCHIFY_NA, 'your-api-key', ['experime
 // Using async/await
 async function runExperiment() {
   try {
-    const treatment = await sdk.getTreatment('experiment1', Stages.BETA, 'USA', 'user123' );
+    // Get segment information
+    const segment = await sdk.getSegment({ ip: '123.45.67.89', userAgent: 'Mozilla/5.0...' });
+    console.log('Segment:', segment);
+
+    // Use the new wrapper function for getting treatment
+    const treatment = await sdk.getTreatmentWithSegment('experiment1', Stages.BETA, segment, 'user123');
     console.log('Treatment:', treatment);
+    
     // Apply the treatment in your application
-    // Note: If no allocation is found, treatment will be an empty string ('')
     if (treatment === '') {
       console.log('No treatment allocated for this user');
       // Apply default behavior
@@ -65,11 +74,11 @@ async function runExperiment() {
       // Apply treatment-specific behavior
     }
 
-    // Track a metric
-    await sdk.trackMetric({
+    // Use the new wrapper function for tracking metrics
+    await sdk.trackMetricWithSegment({
       experimentID: 'experiment1',
       stage: Stages.BETA,
-      dimension: 'USA',
+      segment: segment,
       treatment: treatment,
       metricName: 'clicks',
       metricValue: 1,
@@ -86,24 +95,6 @@ async function runExperiment() {
 }
 
 runExperiment();
-
-// Using Promises
-sdk.getTreatment('experiment2', Stages.PROD, 'default', 'user456')
-  .then(treatment => {
-    console.log('Treatment:', treatment);
-    // Apply the treatment in your application
-    // Note: If no allocation is found, treatment will be an empty string ('')
-    if (treatment === '') {
-      console.log('No treatment allocated for this user');
-      // Apply default behavior
-    } else {
-      // Apply treatment-specific behavior
-    }
-  })
-  .catch(error => {
-    console.error('Error:', error);
-    // Handle the error or use a default treatment
-  });
 ```
 
 ## API Reference
@@ -133,6 +124,17 @@ Gets the treatment for a specific experiment, stage, allocation key, and dimensi
 
 Returns a Promise that resolves to the treatment ID (string) or an empty string ('') if no treatment is assigned or no allocation is found.
 
+### `sdk.getTreatmentWithSegment(experimentID, stage, segment, allocationKey)`
+
+Gets the treatment for a specific experiment, stage, segment, and allocation key. This wrapper function automatically determines the appropriate dimension based on the experiment and segment information.
+
+- `experimentID` (string): The ID of the experiment.
+- `stage` (string): The stage of the experiment. Use values from the `Stages` class.
+- `segment` (Segment): The segment object containing user information.
+- `allocationKey` (string): A unique identifier for the user or entity being tested.
+
+Returns a Promise that resolves to the treatment ID (string) or an empty string ('') if no treatment is assigned or no allocation is found.
+
 ### `sdk.trackMetric(params)`
 
 Tracks a metric for a specific experiment, stage, dimension, and treatment.
@@ -147,6 +149,34 @@ Tracks a metric for a specific experiment, stage, dimension, and treatment.
   - `aggregationType` (string): The type of aggregation to use for this metric. Use values from the `AggregationTypes` enum.
 
 Returns a Promise that resolves when the metric has been tracked successfully.
+
+### `sdk.trackMetricWithSegment(params)`
+
+Tracks a metric for a specific experiment, stage, segment, and treatment. This wrapper function automatically determines the appropriate dimension based on the experiment and segment information.
+
+- `params` (object): An object containing the following properties:
+  - `experimentID` (string): The ID of the experiment.
+  - `stage` (string): The stage of the experiment. Use values from the `Stages` class.
+  - `segment` (Segment): The segment object containing user information.
+  - `treatment` (string): The treatment group for the experiment. Use values from the `Treatments` class.
+  - `metricName` (string): The name of the metric.
+  - `metricValue` (number): The value of the metric.
+  - `aggregationType` (string): The type of aggregation to use for this metric. Use values from the `AggregationTypes` enum.
+
+Returns a Promise that resolves when the metric has been tracked successfully.
+
+### `sdk.getSegment(options)`
+
+Retrieves segment information based on the provided options. If the optional properties are not provided the api will use the ip and user agent of the caller.
+
+- `options` (object): An object containing the following optional properties:
+  - `ip` (string): The IP address of the user.
+  - `userAgent` (string): The user agent string of the user's browser.
+
+Returns a Promise that resolves to a Segment object containing the following properties:
+- `countryCode` (string): The two-letter country code of the user.
+- `region` (string): The region of the user.
+- `deviceType` (string): The type of device the user is using.
 
 ### `sdk.flush()`
 
@@ -181,15 +211,23 @@ An enum containing common experimental stages:
 - `Stages.BETA`: Beta stage.
 - `Stages.PROD`: Production stage.
 
+### `Segment`
+
+A class representing segment information:
+
+- `countryCode` (string): The two-letter country code of the user.
+- `region` (string): The region of the user.
+- `deviceType` (string): The type of device the user is using.
+
 ## Best Practices
 
 1. **Initialization**: Initialize the SDK once when your application starts and reuse the instance throughout your app. Use the `BaseAPIUrls` object for common API endpoints.
 
-2. **Error Handling**: Always include error handling when calling `getTreatment()`, `trackMetric()`, or `flush()` to ensure your application degrades gracefully if the SDK encounters issues.
+2. **Error Handling**: Always include error handling when calling `getTreatment()`, `getTreatmentWithSegment()`, `trackMetric()`, `trackMetricWithSegment()`, `getSegment()`, or `flush()` to ensure your application degrades gracefully if the SDK encounters issues.
 
 3. **Caching**: The SDK implements local caching to improve performance. Take advantage of this by using consistent allocation keys for the same user across sessions.
 
-4. **Dimensions**: Use dimensions to create more granular experiments. For example, you could use different dimensions for new users vs. returning users.
+4. **Dimensions**: Use dimensions to create more granular experiments. For example, you could use different dimensions for new users vs. returning users, or use the countryCode from the Segment information.
 
 5. **Preloading**: If you know which experiments you'll be using, preload them during SDK initialization to improve performance.
 
@@ -197,11 +235,13 @@ An enum containing common experimental stages:
 
 7. **Handling No Allocation**: Always check if the returned treatment is an empty string, which indicates no allocation was found. In this case, apply your default behavior.
 
-8. **Metric Tracking**: Use the `trackMetric()` method to record important user interactions and outcomes. Choose appropriate aggregation types for your metrics to get meaningful insights.
+8. **Metric Tracking**: Use the `trackMetric()` or `trackMetricWithSegment()` methods to record important user interactions and outcomes. Choose appropriate aggregation types for your metrics to get meaningful insights.
 
 9. **Manual Flushing**: Use the `flush()` method when you need to ensure that all tracked metrics are sent to the server immediately, such as before the user leaves the page or after important events.
 
 10. **Validation**: The SDK performs validation on treatment, stage, and aggregation type. Ensure you use valid values from the respective enums to avoid errors.
+
+11. **Segment Information**: Use the `getSegment()` method to retrieve user segment information for more targeted experiments and metrics tracking. Use the new wrapper functions `getTreatmentWithSegment()` and `trackMetricWithSegment()` for simplified segment-based operations.
 
 ## Contributing
 

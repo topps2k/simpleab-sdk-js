@@ -1,6 +1,6 @@
 {
   "name": "simpleab-sdk-js",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "JavaScript SDK for Captchify's Simple A/B",
   "main": "dist/simpleab-sdk.node.js",
   "module": "dist/simpleab-sdk.browser.js",

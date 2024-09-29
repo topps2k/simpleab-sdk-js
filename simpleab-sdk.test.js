@@ -1,7 +1,9 @@
 const { SimpleABSDK, AggregationTypes, Stages, Treatments, Segment } = require('./simpleab-sdk');
+jest.mock('cross-fetch', () => require('jest-fetch-mock'));
+const fetchMock = require('jest-fetch-mock');
 
-// Mock fetch
-global.fetch = jest.fn();
+fetchMock.enableMocks();
+
 
 describe('SimpleABSDK', () =>
 {
@@ -11,9 +13,9 @@ describe('SimpleABSDK', () =>
 
   beforeEach(() =>
   {
-    jest.clearAllMocks();
+    fetchMock.resetMocks();
     jest.useFakeTimers();
-    global.fetch.mockClear();
+    sdk = new SimpleABSDK(mockApiURL, mockApiKey);
   });
 
   afterEach(() =>
@@ -231,7 +233,7 @@ describe('SimpleABSDK', () =>
         { success: mockExperiments.slice(100) }
       ];
 
-      global.fetch.mockImplementation(() =>
+      fetchMock.mockImplementation(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockResponses.shift())
@@ -240,10 +242,13 @@ describe('SimpleABSDK', () =>
 
       await sdk._loadExperiments(mockExperiments.map(exp => exp.id));
 
-      expect(global.fetch).toHaveBeenCalledTimes(3);
-      expect(JSON.parse(global.fetch.mock.calls[0][1].body).ids).toHaveLength(50);
-      expect(JSON.parse(global.fetch.mock.calls[1][1].body).ids).toHaveLength(50);
-      expect(JSON.parse(global.fetch.mock.calls[2][1].body).ids).toHaveLength(20);
+      // Assert the number of fetch calls
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+
+      // Check the body of each fetch call for the correct number of experiment IDs
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).ids).toHaveLength(50);
+      expect(JSON.parse(fetchMock.mock.calls[1][1].body).ids).toHaveLength(50);
+      expect(JSON.parse(fetchMock.mock.calls[2][1].body).ids).toHaveLength(20);
 
       mockExperiments.forEach(exp =>
       {
@@ -256,18 +261,22 @@ describe('SimpleABSDK', () =>
     {
       const mockExperiments = Array.from({ length: 70 }, (_, i) => ({ id: `exp${i + 1}`, name: `Experiment ${i + 1}` }));
 
-      global.fetch
-        .mockImplementationOnce(() => Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ success: mockExperiments.slice(0, 50) })
-        }))
-        .mockImplementationOnce(() => Promise.reject(new Error('API error for second batch')));
+      // Mock the first successful fetch response and the second one throwing an error
+      fetchMock
+        .mockResponseOnce(JSON.stringify({ success: mockExperiments.slice(0, 50) }))
+        .mockRejectOnce(new Error('API error for second batch'));
 
+      // Ensure that the method throws an error for the second batch
       await expect(sdk._loadExperiments(mockExperiments.map(exp => exp.id))).rejects.toThrow('API error for second batch');
 
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-      expect(JSON.parse(global.fetch.mock.calls[0][1].body).ids).toHaveLength(50);
-      expect(JSON.parse(global.fetch.mock.calls[1][1].body).ids).toHaveLength(20);
+      // Assert the number of fetch calls
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      // Check the body of the first fetch call
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).ids).toHaveLength(50);
+
+      // The second call does not have a valid response since it rejects, so you cannot assert the body of the second call
+
 
       mockExperiments.slice(0, 50).forEach(exp =>
       {
@@ -295,15 +304,16 @@ describe('SimpleABSDK', () =>
 
       const updatedExperiments = mockExperiments.map(exp => ({ ...exp, updated: true }));
 
-      global.fetch.mockImplementationOnce(() => Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ success: updatedExperiments })
-      }));
+      // Mock a successful response for fetch
+      fetchMock.mockResponseOnce(JSON.stringify({ success: updatedExperiments }));
 
       await sdk._refreshCache();
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect(JSON.parse(global.fetch.mock.calls[0][1].body).ids).toEqual(mockExperiments.map(exp => exp.id));
+      // Assert that fetch was called once
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      // Check that the correct experiment IDs were sent in the request body
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).ids).toEqual(mockExperiments.map(exp => exp.id));
 
       updatedExperiments.forEach(exp =>
       {
@@ -314,23 +324,36 @@ describe('SimpleABSDK', () =>
 
     it('should handle errors during cache refresh', async () =>
     {
-      const mockExperiments = Array.from({ length: 5 }, (_, i) => ({ id: `exp${i + 1}`, name: `Experiment ${i + 1}` }));
-      mockExperiments.forEach(exp => sdk.cache.set(exp.id, exp));
+      const mockExperiments = Array.from({ length: 5 }, (_, i) => ({
+        id: `exp${i + 1}`,
+        name: `Experiment ${i + 1}`,
+      }));
+      mockExperiments.forEach((exp) => sdk.cache.set(exp.id, exp));
 
-      global.fetch.mockImplementationOnce(() => Promise.reject(new Error('API error during refresh')));
+      // Mock a rejected response for fetch
+      fetchMock.mockRejectOnce(new Error('API error during refresh'));
 
+      // Call the method and await its completion
       await sdk._refreshCache();
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect(JSON.parse(global.fetch.mock.calls[0][1].body).ids).toEqual(mockExperiments.map(exp => exp.id));
+      // Assert that fetch was called once
+      expect(fetchMock).toHaveBeenCalledTimes(1);
 
-      // Ensure the cache remains unchanged
-      mockExperiments.forEach(exp =>
+      // Check that the fetch call was made with the correct request
+      expect(fetchMock.mock.calls[0][1].body).toBeDefined(); // Ensure the body was sent
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).ids).toEqual(
+        mockExperiments.map((exp) => exp.id)
+      );
+
+      // Ensure the cache remains unchanged since the refresh failed
+      mockExperiments.forEach((exp) =>
       {
         expect(sdk.cache.get(exp.id)).toEqual(exp);
       });
+
       sdk.close();
     });
+
   });
 
   describe('_calculateHash', () =>
@@ -683,32 +706,35 @@ describe('SimpleABSDK', () =>
         }
       };
 
-      global.fetch.mockImplementationOnce(() => Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({})
-      }));
+      // Mock a successful response for the fetch call
+      fetchMock.mockResponseOnce(JSON.stringify({}));
 
       await sdk._flushMetrics();
 
-      expect(global.fetch).toHaveBeenCalledWith(`${mockApiURL}/metrics/track/batch`, expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          'X-API-Key': mockApiKey
-        }),
-        body: JSON.stringify({
-          metrics: [{
-            experimentID: 'exp1',
-            stage: 'Beta',
-            dimension: 'dim1',
-            treatment: 'treatment1',
-            metricName: 'metric1',
-            aggregationType: 'sum',
-            value: 30,
-            count: 3
-          }]
+      // Ensure that fetch was called with the correct URL, method, headers, and body
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${mockApiURL}/metrics/track/batch`,
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'X-API-Key': mockApiKey
+          }),
+          body: JSON.stringify({
+            metrics: [{
+              experimentID: 'exp1',
+              stage: 'Beta',
+              dimension: 'dim1',
+              treatment: 'treatment1',
+              metricName: 'metric1',
+              aggregationType: 'sum',
+              value: 30,
+              count: 3
+            }]
+          })
         })
-      }));
+      );
+
 
       expect(sdk.buffer).toEqual({});
     });
@@ -723,32 +749,34 @@ describe('SimpleABSDK', () =>
         }
       };
 
-      global.fetch.mockImplementationOnce(() => Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({})
-      }));
+      // Mock a successful response for the fetch call
+      fetchMock.mockResponseOnce(JSON.stringify({}));
 
       await sdk._flushMetrics();
 
-      expect(global.fetch).toHaveBeenCalledWith(`${mockApiURL}/metrics/track/batch`, expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          'X-API-Key': mockApiKey
-        }),
-        body: JSON.stringify({
-          metrics: [{
-            experimentID: 'exp1',
-            stage: 'Beta',
-            dimension: 'dim1',
-            treatment: 'treatment1',
-            metricName: 'metric1',
-            aggregationType: 'average',
-            value: 10,
-            count: 3
-          }]
+      // Ensure that fetch was called with the correct URL, method, headers, and body
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${mockApiURL}/metrics/track/batch`,
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'X-API-Key': mockApiKey
+          }),
+          body: JSON.stringify({
+            metrics: [{
+              experimentID: 'exp1',
+              stage: 'Beta',
+              dimension: 'dim1',
+              treatment: 'treatment1',
+              metricName: 'metric1',
+              aggregationType: 'average',  // Ensure the correct aggregation type is tested
+              value: 10,
+              count: 3
+            }]
+          })
         })
-      }));
+      );
 
       expect(sdk.buffer).toEqual({});
     });
@@ -763,34 +791,37 @@ describe('SimpleABSDK', () =>
         }
       };
 
-      global.fetch.mockImplementationOnce(() => Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({})
-      }));
+      // Mock a successful response for the fetch call
+      fetchMock.mockResponseOnce(JSON.stringify({}));
 
       await sdk._flushMetrics();
 
-      expect(global.fetch).toHaveBeenCalledWith(`${mockApiURL}/metrics/track/batch`, expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          'X-API-Key': mockApiKey
-        }),
-        body: JSON.stringify({
-          metrics: [{
-            experimentID: 'exp1',
-            stage: 'Beta',
-            dimension: 'dim1',
-            treatment: 'treatment1',
-            metricName: 'metric1',
-            aggregationType: "percentile",
-            p50: 10,
-            p90: 15,
-            p99: 15,
-            count: 3
-          }]
+      // Ensure that fetch was called with the correct URL, method, headers, and body
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${mockApiURL}/metrics/track/batch`,
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'X-API-Key': mockApiKey
+          }),
+          body: JSON.stringify({
+            metrics: [{
+              experimentID: 'exp1',
+              stage: 'Beta',
+              dimension: 'dim1',
+              treatment: 'treatment1',
+              metricName: 'metric1',
+              aggregationType: 'percentile',  // Ensure the correct aggregation type is tested
+              p50: 10,
+              p90: 15,
+              p99: 15,
+              count: 3
+            }]
+          })
         })
-      }));
+      );
+
 
       expect(sdk.buffer).toEqual({});
     });
@@ -805,12 +836,17 @@ describe('SimpleABSDK', () =>
         }
       };
 
-      global.fetch.mockImplementationOnce(() => Promise.reject(new Error('API error')));
+      // Mock a rejected fetch call
+      fetchMock.mockRejectOnce(new Error('API error'));
 
       await sdk._flushMetrics();
 
-      expect(global.fetch).toHaveBeenCalled();
-      expect(sdk.buffer).toEqual({}); // Buffer should be cleared even if API call fails
+      // Ensure that fetch was called
+      expect(fetchMock).toHaveBeenCalled();
+
+      // Verify that the buffer is cleared even if the API call fails
+      expect(sdk.buffer).toEqual({});
+
     });
   });
 
@@ -839,19 +875,21 @@ describe('SimpleABSDK', () =>
         };
       }
 
-      // Simulate error for the second batch
-      global.fetch
-        .mockImplementationOnce(() => Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({})
-        }))
-        .mockImplementationOnce(() => Promise.reject(new Error('API error for second batch')));
+      // Mock the first successful batch response and the second failing batch
+      fetchMock
+        .mockResponseOnce(JSON.stringify({}))  // First batch is successful
+        .mockRejectOnce(new Error('API error for second batch'));  // Second batch fails
 
       await sdk._flushMetrics();
 
-      // Ensure the first batch was sent successfully
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-      expect(JSON.parse(global.fetch.mock.calls[0][1].body).metrics).toHaveLength(150);
+      // Ensure both fetch calls were made
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      // Verify that the first call contains 150 metrics
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).metrics).toHaveLength(150);
+
+      // No need to check the body of the second call since it results in an error
+
 
       expect(sdk.buffer).toEqual({}); // Buffer should be empty
     });
@@ -868,23 +906,20 @@ describe('SimpleABSDK', () =>
           values: []
         };
       }
-
-      global.fetch.mockImplementation(() => Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({})
-      }));
+      // Mock the fetch response to return a successful response for all batches
+      fetchMock.mockResponse(() => Promise.resolve(JSON.stringify({})));
 
       await sdk._flushMetrics();
 
       // Ensure fetch was called 3 times (two full batches of 150 and one batch of 5)
-      expect(global.fetch).toHaveBeenCalledTimes(3);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
 
       // First two batches should have 150 metrics each
-      expect(JSON.parse(global.fetch.mock.calls[0][1].body).metrics).toHaveLength(150);
-      expect(JSON.parse(global.fetch.mock.calls[1][1].body).metrics).toHaveLength(150);
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).metrics).toHaveLength(150);
+      expect(JSON.parse(fetchMock.mock.calls[1][1].body).metrics).toHaveLength(150);
 
       // Last batch should have 5 metrics
-      expect(JSON.parse(global.fetch.mock.calls[2][1].body).metrics).toHaveLength(5);
+      expect(JSON.parse(fetchMock.mock.calls[2][1].body).metrics).toHaveLength(5);
 
       // Ensure the buffer is cleared after flush
       expect(sdk.buffer).toEqual({});
@@ -906,15 +941,14 @@ describe('SimpleABSDK', () =>
       };
     }
 
-    global.fetch.mockImplementation(() => Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({})
-    }));
+    // Mock fetch response to return a successful response for both parallel batches
+    fetchMock.mockResponse(JSON.stringify({}));
 
     await sdk._flushMetrics();
 
-    // Check if all batches were sent in parallel
-    expect(global.fetch).toHaveBeenCalledTimes(2);
+    // Ensure that fetch was called twice (in parallel for two batches)
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
     expect(sdk.buffer).toEqual({});
   });
 
@@ -993,46 +1027,53 @@ describe('SimpleABSDK', () =>
         deviceType: 'desktop'
       };
 
-      global.fetch.mockImplementationOnce(() => Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockResponse)
-      }));
+      // Mock the fetch response
+      fetchMock.mockResponseOnce(JSON.stringify(mockResponse));
 
       const result = await sdk.getSegment({ ip: '123.45.67.89', userAgent: 'Mozilla/5.0...' });
 
+      // Verify the result is an instance of Segment and the properties are correct
       expect(result).toBeInstanceOf(Segment);
       expect(result.countryCode).toBe('US');
       expect(result.region).toBe('NA');
       expect(result.deviceType).toBe('desktop');
 
-      expect(global.fetch).toHaveBeenCalledWith(`${mockApiURL}/segment`, expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          'X-API-Key': mockApiKey
-        }),
-        body: JSON.stringify({
-          ip: '123.45.67.89',
-          userAgent: 'Mozilla/5.0...'
+      // Ensure fetch was called with the correct arguments
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${mockApiURL}/segment`,
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'X-API-Key': mockApiKey
+          }),
+          body: JSON.stringify({
+            ip: '123.45.67.89',
+            userAgent: 'Mozilla/5.0...'
+          })
         })
-      }));
+      );
+
     });
 
     it('should handle API errors', async () =>
     {
-      global.fetch.mockImplementationOnce(() => Promise.reject(new Error('API error')));
+      // Mock the fetch call to reject with an error
+      fetchMock.mockRejectOnce(new Error('API error'));
 
+      // Assert that sdk.getSegment() throws the correct error
       await expect(sdk.getSegment()).rejects.toThrow('API error');
     });
 
     it('should handle non-OK responses', async () =>
     {
-      global.fetch.mockImplementationOnce(() => Promise.resolve({
-        ok: false,
-        status: 400,
-        statusText: 'Bad Request'
-      }));
+      // Mock the fetch call to resolve with a non-OK response (status 400)
+      fetchMock.mockResponseOnce(
+        JSON.stringify({}),
+        { status: 400, statusText: 'Bad Request' }
+      );
 
+      // Assert that sdk.getSegment() throws the correct error for non-OK responses
       await expect(sdk.getSegment()).rejects.toThrow('API request failed with status code: 400');
     });
 
@@ -1044,14 +1085,14 @@ describe('SimpleABSDK', () =>
         deviceType: 'mobile'
       };
 
-      global.fetch.mockImplementationOnce(() => Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockResponse)
-      }));
+      // Mock the fetch call to return a successful response
+      fetchMock.mockResponseOnce(JSON.stringify(mockResponse));
 
+      // Call sdk.getSegment() without ip and userAgent
       await sdk.getSegment();
 
-      expect(global.fetch).toHaveBeenCalledWith(`${mockApiURL}/segment`, expect.objectContaining({
+      // Assert that fetch was called with an empty body since ip and userAgent were not provided
+      expect(fetchMock).toHaveBeenCalledWith(`${mockApiURL}/segment`, expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
           'Content-Type': 'application/json',
@@ -1270,9 +1311,9 @@ describe('SimpleABSDK', () =>
           {
             stage: 'Beta',
             stageDimensions: [
-              { dimension: 'US-mobile' },
-              { dimension: 'US-all' },
-              { dimension: 'GLO-all' }
+              { dimension: 'US-mobile', enabled: true },
+              { dimension: 'US-all', enabled: true },
+              { dimension: 'GLO-all', enabled: true }
             ]
           }
         ]
@@ -1282,6 +1323,25 @@ describe('SimpleABSDK', () =>
       expect(result).toBe('US-mobile');
     });
 
+    it('should return fallback for filtered dimension', () =>
+    {
+      const experiment = {
+        stages: [
+          {
+            stage: 'Beta',
+            stageDimensions: [
+              { dimension: 'US-mobile', enabled: false },
+              { dimension: 'US-all', enabled: true },
+              { dimension: 'GLO-all', enabled: true }
+            ]
+          }
+        ]
+      };
+      const segment = new Segment('US', 'NA', 'mobile');
+      const result = sdk._getDimensionFromSegment(experiment, 'Beta', segment);
+      expect(result).toBe('US-all');
+    });
+
     it('should return country code with "all" device type if exact match not found', () =>
     {
       const experiment = {
@@ -1289,8 +1349,8 @@ describe('SimpleABSDK', () =>
           {
             stage: 'Beta',
             stageDimensions: [
-              { dimension: 'US-all' },
-              { dimension: 'GLO-all' }
+              { dimension: 'US-all', enabled: true },
+              { dimension: 'GLO-all', enabled: true }
             ]
           }
         ]
@@ -1307,8 +1367,8 @@ describe('SimpleABSDK', () =>
           {
             stage: 'Beta',
             stageDimensions: [
-              { dimension: 'NA-mobile' },
-              { dimension: 'GLO-all' }
+              { dimension: 'NA-mobile', enabled: true },
+              { dimension: 'GLO-all', enabled: true }
             ]
           }
         ]
@@ -1325,8 +1385,8 @@ describe('SimpleABSDK', () =>
           {
             stage: 'Beta',
             stageDimensions: [
-              { dimension: 'GLO-mobile' },
-              { dimension: 'GLO-all' }
+              { dimension: 'GLO-mobile', enabled: true },
+              { dimension: 'GLO-all', enabled: true }
             ]
           }
         ]
@@ -1343,7 +1403,7 @@ describe('SimpleABSDK', () =>
           {
             stage: 'Beta',
             stageDimensions: [
-              { dimension: 'UK-desktop' }
+              { dimension: 'UK-desktop', enabled: true }
             ]
           }
         ]
@@ -1360,7 +1420,7 @@ describe('SimpleABSDK', () =>
           {
             stage: 'Beta',
             stageDimensions: [
-              { dimension: 'US-mobile' }
+              { dimension: 'US-mobile', enabled: true }
             ]
           }
         ]

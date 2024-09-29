@@ -31,7 +31,8 @@
     "rimraf": "^3.0.2",
     "terser-webpack-plugin": "^5.3.6",
     "webpack": "^5.75.0",
-    "webpack-cli": "^4.10.0"
+    "webpack-cli": "^4.10.0",
+    "jest-fetch-mock": "^3.0.3"
   },
   "homepage": "https://captchify.com",
   "repository": {

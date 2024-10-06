@@ -467,7 +467,7 @@ class SimpleABSDK {
     if (!treatmentData) {
       throw new Error(`Treatment ${treatment} in experiment ${experimentID}`);
     }
-    const key = `${experimentID}-${stage}-${dimension}-${treatment}-${metricName}-${aggregationType}`;
+    const key = `${experimentID}|${stage}|${dimension}|${treatment}|${metricName}|${aggregationType}`;
 
     // Initialize or aggregate metric in the buffer
     if (!this.buffer[key]) {
@@ -513,7 +513,7 @@ class SimpleABSDK {
   // Flush metrics to the backend server
   async _flushMetrics() {
     const metricsBatch = Object.entries(this.buffer).map(([key, value]) => {
-      const [experimentID, stage, dimension, treatment, metricName, aggregationType] = key.split('-');
+      const [experimentID, stage, dimension, treatment, metricName, aggregationType] = key.split('|');
       let metricValue;
       if (aggregationType === AggregationTypes.AVERAGE) {
         metricValue = value.sum / value.count; // Calculate the average

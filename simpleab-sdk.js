@@ -345,7 +345,7 @@ class SimpleABSDK
       throw new Error(`Treatment ${treatment} in experiment ${experimentID}`);
     }
 
-    const key = `${experimentID}-${stage}-${dimension}-${treatment}-${metricName}-${aggregationType}`;
+    const key = `${experimentID}|${stage}|${dimension}|${treatment}|${metricName}|${aggregationType}`;
 
     // Initialize or aggregate metric in the buffer
     if (!this.buffer[key])
@@ -402,7 +402,7 @@ class SimpleABSDK
   {
     const metricsBatch = Object.entries(this.buffer).map(([key, value]) =>
     {
-      const [experimentID, stage, dimension, treatment, metricName, aggregationType] = key.split('-');
+      const [experimentID, stage, dimension, treatment, metricName, aggregationType] = key.split('|');
 
       let metricValue;
       if (aggregationType === AggregationTypes.AVERAGE)
